@@ -14,7 +14,216 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          account_type: string
+          created_at: string
+          currency: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          created_at?: string
+          currency?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          category_type: string
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          category_type: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          category_type?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exchange_rates: {
+        Row: {
+          created_at: string
+          date: string
+          from_currency: string
+          id: string
+          rate: number
+          to_currency: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          from_currency: string
+          id?: string
+          rate: number
+          to_currency: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          from_currency?: string
+          id?: string
+          rate?: number
+          to_currency?: string
+        }
+        Relationships: []
+      }
+      family_balances: {
+        Row: {
+          created_at: string
+          id: string
+          last_transaction: string | null
+          name: string
+          status: string
+          total_sent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_transaction?: string | null
+          name: string
+          status?: string
+          total_sent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_transaction?: string | null
+          name?: string
+          status?: string
+          total_sent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          base_currency: string
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          amount_gbp: number | null
+          category_id: string | null
+          created_at: string
+          currency: string
+          date: string
+          description: string
+          exchange_rate: number | null
+          id: string
+          notes: string | null
+          transaction_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          amount_gbp?: number | null
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          date: string
+          description: string
+          exchange_rate?: number | null
+          id?: string
+          notes?: string | null
+          transaction_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          amount_gbp?: number | null
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          date?: string
+          description?: string
+          exchange_rate?: number | null
+          id?: string
+          notes?: string | null
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
