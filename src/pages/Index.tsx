@@ -23,7 +23,8 @@ const Index = () => {
     loading: transactionsLoading,
     getMonthlyStats,
     getExpensesByCategory,
-    getLast12MonthsData
+    getLast12MonthsData,
+    refetch // Add this if available, or we'll create our own refresh mechanism
   } = useTransactions();
 
   const [familyBalances, setFamilyBalances] = useState<Array<{
@@ -33,6 +34,9 @@ const Index = () => {
     lastTransaction: string;
     status: 'active' | 'inactive';
   }>>([]);
+  
+  // Add refresh key to force component updates
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -67,19 +71,22 @@ const Index = () => {
     }
   };
 
-  if (loading || !user) {
-    return null; // ProtectedRoute will handle the redirect
-  }
-
-  const monthlyStats = getMonthlyStats();
-  const expensesByCategory = getExpensesByCategory();
-  const last12MonthsData = getLast12MonthsData();
-
-  const handleUploadClick = () => {
+  // NEW: Handle data refresh after transaction upload
+  const handleTransactionsUploaded = () => {
+    // Force refresh of all data
+    setRefreshKey(prev => prev + 1);
+    
+    // If useTransactions has a refetch method, call it
+    if (typeof refetch === 'function') {
+      refetch();
+    }
+    
+    // Also refresh family balances in case they were affected
+    fetchFamilyBalances();
+    
     toast({
-      title: "Upload Feature",
-      description: "File upload functionality coming soon! You can manually add transactions for now.",
-      duration: 5000,
+      title: "Success!",
+      description: "Transactions uploaded successfully. Dashboard updated.",
     });
   };
 
@@ -118,16 +125,27 @@ const Index = () => {
     }
   };
 
+  if (loading || !user) {
+    return null; // ProtectedRoute will handle the redirect
+  }
+
+  const monthlyStats = getMonthlyStats();
+  const expensesByCategory = getExpensesByCategory();
+  const last12MonthsData = getLast12MonthsData();
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6 max-w-7xl">
+          {/* UPDATED: Remove onUploadClick, add onTransactionsUploaded */}
           <DashboardHeader 
-            onUploadClick={handleUploadClick}
             onAddBalanceClick={handleAddBalanceClick}
+            onTransactionsUploaded={handleTransactionsUploaded}
           />
           
+          {/* Add refreshKey to force updates when transactions change */}
           <MetricsCards 
+            key={`metrics-${refreshKey}`}
             totalBalance={monthlyStats.totalBalance}
             monthlyIncome={monthlyStats.monthlyIncome}
             monthlyExpenses={monthlyStats.monthlyExpenses}
@@ -135,36 +153,51 @@ const Index = () => {
           />
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <RecentTransactions transactions={transactions.slice(0, 5).filter(t => t.transaction_type !== 'transfer').map(t => ({
-              id: t.id,
-              date: t.date,
-              description: t.description,
-              amount: t.amount_gbp,
-              category: t.category?.name || 'Uncategorized',
-              type: t.transaction_type as 'income' | 'expense'
-            }))} />
+            <RecentTransactions 
+              key={`transactions-${refreshKey}`}
+              transactions={transactions.slice(0, 5).filter(t => t.transaction_type !== 'transfer').map(t => ({
+                id: t.id,
+                date: t.date,
+                description: t.description,
+                amount: t.amount_gbp,
+                category: t.category?.name || 'Uncategorized',
+                type: t.transaction_type as 'income' | 'expense'
+              }))} 
+            />
             <FamilyBalances 
               balances={familyBalances}
               onAddBalance={handleAddBalanceClick}
             />
           </div>
 
-          {/* Charts Section */}
+          {/* Charts Section - Add refresh keys to update with new data */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ExpensesByCategory data={expensesByCategory} />
-            <ExpensesOverTime data={last12MonthsData.map(m => ({ 
-              month: m.month, 
-              amount: m.expenses,
-              categories: {}
-            }))} />
-            <IncomeOverTime data={last12MonthsData.map(m => ({ 
-              month: m.month, 
-              amount: m.income
-            }))} />
-            <SavingsOverTime data={last12MonthsData.map(m => ({ 
-              month: m.month, 
-              amount: m.savings
-            }))} />
+            <ExpensesByCategory 
+              key={`expenses-category-${refreshKey}`}
+              data={expensesByCategory} 
+            />
+            <ExpensesOverTime 
+              key={`expenses-time-${refreshKey}`}
+              data={last12MonthsData.map(m => ({ 
+                month: m.month, 
+                amount: m.expenses,
+                categories: {}
+              }))} 
+            />
+            <IncomeOverTime 
+              key={`income-time-${refreshKey}`}
+              data={last12MonthsData.map(m => ({ 
+                month: m.month, 
+                amount: m.income
+              }))} 
+            />
+            <SavingsOverTime 
+              key={`savings-time-${refreshKey}`}
+              data={last12MonthsData.map(m => ({ 
+                month: m.month, 
+                amount: m.savings
+              }))} 
+            />
           </div>
         </div>
       </div>

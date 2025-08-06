@@ -1,13 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { Plus, Upload, BarChart3, LogOut } from "lucide-react";
+import { Plus, LogOut } from "lucide-react"; // Removed Upload since we don't need it
 import { useAuth } from "@/hooks/useAuth";
+import { TransactionUploadButton } from "./TransactionUploadButton";
 
 interface DashboardHeaderProps {
-  onUploadClick: () => void;
   onAddBalanceClick: () => void;
+  onTransactionsUploaded?: () => void; // Optional callback for data refresh
 }
 
-export function DashboardHeader({ onUploadClick, onAddBalanceClick }: DashboardHeaderProps) {
+export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: DashboardHeaderProps) {
   const { signOut, user } = useAuth();
 
   const handleSignOut = async () => {
@@ -25,14 +26,11 @@ export function DashboardHeader({ onUploadClick, onAddBalanceClick }: DashboardH
         </div>
         
         <div className="flex gap-3">
-          <Button 
-            variant="secondary" 
-            onClick={onUploadClick}
+          {/* Replace the old upload button with the new component */}
+          <TransactionUploadButton 
+            onTransactionsUploaded={onTransactionsUploaded}
             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Transactions
-          </Button>
+          />
           
           <Button 
             variant="secondary"
