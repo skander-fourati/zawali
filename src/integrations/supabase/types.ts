@@ -168,10 +168,12 @@ export type Database = {
           currency: string
           date: string
           description: string
+          encord_expensable: boolean
           exchange_rate: number | null
           id: string
           notes: string | null
           transaction_type: string
+          trip_id: string | null
           updated_at: string
           user_id: string
         }
@@ -184,10 +186,12 @@ export type Database = {
           currency?: string
           date: string
           description: string
+          encord_expensable?: boolean
           exchange_rate?: number | null
           id?: string
           notes?: string | null
           transaction_type: string
+          trip_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -200,10 +204,12 @@ export type Database = {
           currency?: string
           date?: string
           description?: string
+          encord_expensable?: boolean
           exchange_rate?: number | null
           id?: string
           notes?: string | null
           transaction_type?: string
+          trip_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -222,14 +228,45 @@ export type Database = {
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      trips: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      insert_default_trips: {
+        Args: { user_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
