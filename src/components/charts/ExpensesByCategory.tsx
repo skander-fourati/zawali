@@ -27,6 +27,13 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
     }).format(value);
   };
 
+  // FIXED: Convert negative amounts to positive for display
+  // This takes any negative expense amounts and makes them positive for the chart
+  const processedData = data.map(item => ({
+    ...item,
+    amount: Math.abs(item.amount) // Math.abs() makes negative numbers positive
+  }));
+
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
       <CardHeader>
@@ -35,7 +42,7 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis 
                 dataKey="category" 
                 tick={{ fontSize: 12 }}

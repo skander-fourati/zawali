@@ -3,18 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
-interface SavingsOverTimeProps {
+interface InvestmentsOverTimeProps {
   data: Array<{
     month: string;
-    amount: number; // This should be calculated as: Income - Expenses (excluding investments)
+    amount: number; // This should be the total investment amount for the month
   }>;
 }
 
-export function SavingsOverTime({ data }: SavingsOverTimeProps) {
+export function InvestmentsOverTime({ data }: InvestmentsOverTimeProps) {
   const chartConfig = {
     amount: {
-      label: 'Monthly Savings',
-      color: 'hsl(var(--primary))',
+      label: 'Monthly Investments',
+      color: 'hsl(var(--chart-1))', // Using a distinct color for investments
     },
   };
 
@@ -25,21 +25,17 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
     }).format(value);
   };
 
-  // EXPLANATION: Savings can be positive (you saved money) or negative (you spent more than earned)
-  // We don't need to convert to absolute values here because:
-  // - Positive savings = good (green bars going up)
-  // - Negative savings = overspending (red bars going down)
-  const processedData = data.map(item => ({
-    ...item,
-    // Keep the original amount - positive for savings, negative for overspending
-    amount: item.amount
+  // EXPLANATION: For investments, we want to show the absolute value
+  // because negative amounts (money leaving account) represent investments made
+  const processedData = data.map(monthData => ({
+    ...monthData,
+    amount: Math.abs(monthData.amount) // Show positive values for money invested
   }));
 
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Savings Over Last 12 Months</CardTitle>
-        <p className="text-sm text-muted-foreground">Income minus Expenses (excluding investments)</p>
+        <CardTitle className="text-lg font-semibold">Investments Over Last 12 Months</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px]">
@@ -55,15 +51,11 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
               />
               <ChartTooltip 
                 content={<ChartTooltipContent />}
-                formatter={(value: number) => [
-                  formatCurrency(Math.abs(value)), 
-                  value >= 0 ? 'Savings' : 'Overspending'
-                ]}
+                formatter={(value: number) => [formatCurrency(value), 'Investments']}
               />
               <Bar 
                 dataKey="amount" 
-                // Dynamic color: green for positive (savings), red for negative (overspending)
-                fill="hsl(var(--primary))"
+                fill="hsl(220, 90%, 56%)" // Blue color for investments
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
