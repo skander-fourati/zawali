@@ -1,0 +1,531 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
+import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
+
+const TransactionsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [searchQuery, setSearchQuery] = useState('');
+  // Filter states
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Modal states for edit/add/delete
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<any>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const ITEMS_PER_PAGE = 50;
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    
+    try {
+      // Fetch transactions (keeping your original pattern with @ts-ignore)
+      // @ts-ignore
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('date', { ascending: false });
+
+      // Fetch categories
+      // @ts-ignore
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('name');
+
+      // Fetch accounts
+      // @ts-ignore
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('name');
+
+      // Fetch trips (might not exist yet)
+      // @ts-ignore
+      const { data: tripsData, error: tripsError } = await supabase
+        .from('trips')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('name');
+
+      // Handle errors
+      if (transactionsError) {
+        console.error('Transactions error:', transactionsError);
+        toast({
+          title: "Database Error",
+          description: `Transactions: ${transactionsError.message}`,
+          variant: "destructive",
+        });
+      }
+
+      // Set data (use empty arrays if errors)
+      setTransactions(transactionsData || []);
+      setCategories(categoriesData || []);
+      setAccounts(accountsData || []);
+      setTrips(tripsData || []); // It's OK if trips don't exist yet
+
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load data. Check browser console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NEW: Handle edit transaction
+  const handleEdit = (transaction: any) => {
+    setEditingTransaction(transaction);
+  };
+
+  // UPDATED: Handle delete with confirmation modal
+  const handleDelete = (transaction: any) => {
+    setDeletingTransaction(transaction);
+  };
+
+  // NEW: Confirm delete
+  const confirmDelete = async () => {
+    if (!deletingTransaction) return;
+
+    try {
+      // @ts-ignore
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', deletingTransaction.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Transaction deleted.",
+      });
+
+      fetchData(); // Refresh data
+      setDeletingTransaction(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to delete transaction.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // NEW: Handle add transaction
+  const handleAddTransaction = () => {
+    setIsAddModalOpen(true);
+  };
+
+  // NEW: Handle modal save (refresh data)
+  const handleModalSave = () => {
+    fetchData(); // Refresh data
+    setIsAddModalOpen(false);
+    setEditingTransaction(null);
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // NEW: Clear all filters function
+  const clearFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setAccountFilter('all');
+  };
+
+  const filteredAndSortedTransactions = useMemo(() => {
+    let filtered = [...transactions];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter((t: any) => 
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Category filter
+    if (categoryFilter && categoryFilter !== 'all') {
+      filtered = filtered.filter((t: any) => t.category_id === categoryFilter);
+    }
+
+    // Account filter  
+    if (accountFilter && accountFilter !== 'all') {
+      filtered = filtered.filter((t: any) => t.account_id === accountFilter);
+    }
+
+    // Sort
+    filtered.sort((a: any, b: any) => {
+      let aValue: any, bValue: any;
+
+      switch (sortField) {
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'description':
+          aValue = a.description?.toLowerCase() || '';
+          bValue = b.description?.toLowerCase() || '';
+          break;
+        case 'amount_gbp':
+          aValue = a.amount_gbp || 0;
+          bValue = b.amount_gbp || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [transactions, searchQuery, categoryFilter, accountFilter, sortField, sortDirection]);
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAndSortedTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredAndSortedTransactions, currentPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedTransactions.length / ITEMS_PER_PAGE);
+
+  const getCategoryName = (categoryId: string | null) => {
+    if (!categoryId) return 'Uncategorized';
+    const category = categories.find((c: any) => c.id === categoryId);
+    return category?.name || 'Unknown';
+  };
+
+  const getAccountName = (accountId: string | null) => {
+    if (!accountId) return 'Unknown Account';
+    const account = accounts.find((a: any) => a.id === accountId);
+    return account?.name || 'Unknown Account';
+  };
+
+  const getTripName = (tripId: string | null) => {
+    if (!tripId) return null;
+    const trip = trips.find((t: any) => t.id === tripId);
+    return trip?.name || null;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="ml-4">Loading transactions...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-3xl font-bold">All Transactions</h1>
+        </div>
+        {/* UPDATED: Add Transaction button now works */}
+        <Button 
+          onClick={handleAddTransaction}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Transaction
+        </Button>
+      </div>
+
+      {/* Search and Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search transactions by description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {/* NEW: Show active filter count */}
+              {(categoryFilter !== 'all' || accountFilter !== 'all') && (
+                <Badge variant="secondary" className="ml-2">
+                  {[categoryFilter !== 'all', accountFilter !== 'all'].filter(Boolean).length}
+                </Badge>
+              )}
+            </Button>
+          </div>
+
+          {showFilters && (
+            <div className="flex gap-4 pt-4 border-t mt-4">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category: any) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={accountFilter} onValueChange={setAccountFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Accounts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {accounts.map((account: any) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* NEW: Clear button with icon */}
+              <Button 
+                variant="outline" 
+                onClick={clearFilters}
+                className="flex items-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results - UPDATED: Show filtered count */}
+      <div className="mb-4 text-sm text-gray-600">
+        Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
+        {filteredAndSortedTransactions.length !== transactions.length && (
+          <span> (filtered from {transactions.length} total)</span>
+        )}
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {paginatedTransactions.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <p className="text-lg">No transactions found</p>
+              <p className="text-sm mt-2">
+                {transactions.length === 0 
+                  ? "Upload some CSV files from the dashboard to see transactions here."
+                  : "Try adjusting your search or filters."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b bg-gray-50">
+                  <tr>
+                    <th 
+                      className="text-left p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('date')}
+                    >
+                      Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      className="text-left p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('description')}
+                    >
+                      Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="text-left p-4 font-semibold">Category</th>
+                    <th className="text-left p-4 font-semibold">Account</th>
+                    <th className="text-left p-4 font-semibold">Trip</th>
+                    <th className="text-left p-4 font-semibold">Encord</th>
+                    <th 
+                      className="text-right p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      onClick={() => handleSort('amount_gbp')}
+                    >
+                      Amount (GBP) {sortField === 'amount_gbp' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th className="text-center p-4 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTransactions.map((transaction: any, index: number) => (
+                    <tr 
+                      key={transaction.id} 
+                      className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
+                    >
+                      <td className="p-4 text-sm">
+                        {new Date(transaction.date).toLocaleDateString()}
+                      </td>
+                      <td className="p-4 text-sm">
+                        <div className="max-w-64 truncate" title={transaction.description}>
+                          {transaction.description || 'No description'}
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm">
+                        <Badge variant="secondary">{getCategoryName(transaction.category_id)}</Badge>
+                      </td>
+                      <td className="p-4 text-sm">
+                        {getAccountName(transaction.account_id)}
+                      </td>
+                      <td className="p-4 text-sm">
+                        {getTripName(transaction.trip_id) ? (
+                          <Badge variant="outline">{getTripName(transaction.trip_id)}</Badge>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm">
+                        {transaction.encord_expensable ? (
+                          <Badge className="bg-green-100 text-green-800">Yes</Badge>
+                        ) : (
+                          <Badge variant="secondary">No</Badge>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm text-right font-mono">
+                        <span className={(transaction.amount_gbp || 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          £{((transaction.amount_gbp || 0)).toFixed(2)}
+                        </span>
+                        {transaction.currency !== 'GBP' && transaction.amount && (
+                          <div className="text-xs text-gray-500">
+                            {transaction.currency} {transaction.amount.toFixed(2)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex gap-2 justify-center">
+                          {/* UPDATED: Edit button now works */}
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => handleEdit(transaction)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          {/* UPDATED: Delete with confirmation modal */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(transaction)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm">Page {currentPage} of {totalPages}</span>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+
+      {/* NEW: Modals */}
+      <AddEditTransactionModal
+        isOpen={isAddModalOpen || !!editingTransaction}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        transaction={editingTransaction}
+        onSave={handleModalSave}
+        categories={categories}
+        accounts={accounts}
+        trips={trips}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={!!deletingTransaction}
+        onClose={() => setDeletingTransaction(null)}
+        onConfirm={confirmDelete}
+        transactionDescription={deletingTransaction?.description || ''}
+      />
+    </div>
+  );
+};
+
+export default TransactionsPage;
