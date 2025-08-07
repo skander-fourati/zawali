@@ -11,6 +11,7 @@ export interface Transaction {
   exchange_rate: number;
   amount_gbp: number;
   transaction_type: 'income' | 'expense' | 'transfer';
+  trip_id: string | null; // ADD trip_id to interface
   category: {
     id: string;
     name: string;
@@ -21,6 +22,10 @@ export interface Transaction {
     name: string;
     account_type: string;
   };
+  trip: {
+    id: string;
+    name: string;
+  } | null; // ADD trip data to interface
 }
 
 export interface Category {
@@ -37,10 +42,20 @@ export interface Account {
   currency: string;
 }
 
+// ADD Trip interface
+export interface Trip {
+  id: string;
+  name: string;
+  user_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]); // ADD trips state
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -54,14 +69,16 @@ export function useTransactions() {
     try {
       setLoading(true);
 
-      // Fetch transactions with related data
+      // UPDATED: Fetch transactions with trip data included
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
           *,
           category:categories(*),
-          account:accounts(*)
+          account:accounts(*),
+          trip:trips(id, name)
         `)
+        .eq('user_id', user?.id) // Make sure we filter by user
         .order('date', { ascending: false });
 
       if (transactionsError) throw transactionsError;
@@ -70,6 +87,7 @@ export function useTransactions() {
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
+        .eq('user_id', user?.id) // Filter by user
         .order('name');
 
       if (categoriesError) throw categoriesError;
@@ -78,13 +96,27 @@ export function useTransactions() {
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
         .select('*')
+        .eq('user_id', user?.id) // Filter by user
         .order('name');
 
       if (accountsError) throw accountsError;
 
+      // ADD: Fetch trips separately for easy access
+      const { data: tripsData, error: tripsError } = await supabase
+        .from('trips')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('name');
+
+      // Don't throw error for trips - they might not exist yet
+      if (tripsError) {
+        console.log('No trips found or error fetching trips:', tripsError);
+      }
+
       setTransactions((transactionsData || []) as Transaction[]);
       setCategories((categoriesData || []) as Category[]);
       setAccounts((accountsData || []) as Account[]);
+      setTrips((tripsData || []) as Trip[]); // SET trips data
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -92,7 +124,11 @@ export function useTransactions() {
     }
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'category' | 'account'> & { category_id?: string; account_id: string }) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'category' | 'account' | 'trip'> & { 
+    category_id?: string; 
+    account_id: string;
+    trip_id?: string | null; // ADD trip_id support
+  }) => {
     try {
       const { error } = await supabase
         .from('transactions')
@@ -207,15 +243,53 @@ export function useTransactions() {
     return months;
   };
 
+  // ADD: New trip-related helper functions
+  const getExpensesByTrip = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const currentMonthExpenses = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return t.transaction_type === 'expense' &&
+             t.trip_id && // Only include transactions with trips
+             transactionDate.getMonth() === currentMonth && 
+             transactionDate.getFullYear() === currentYear;
+    });
+
+    const tripTotals = currentMonthExpenses.reduce((acc, transaction) => {
+      const tripName = transaction.trip?.name || 'Unknown Trip';
+      
+      if (!acc[tripName]) {
+        acc[tripName] = { amount: 0 };
+      }
+      acc[tripName].amount += Math.abs(transaction.amount_gbp); // Show as positive
+      return acc;
+    }, {} as Record<string, { amount: number }>);
+
+    const colors = [
+      'hsl(260, 70%, 50%)', 'hsl(30, 70%, 50%)', 'hsl(150, 70%, 50%)',
+      'hsl(200, 70%, 50%)', 'hsl(320, 70%, 50%)', 'hsl(80, 70%, 50%)'
+    ];
+
+    return Object.entries(tripTotals).map(([trip, data], index) => ({
+      trip,
+      amount: data.amount,
+      color: colors[index % colors.length]
+    }));
+  };
+
   return {
     transactions,
     categories,
     accounts,
+    trips, // ADD trips to return object
     loading,
     addTransaction,
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,
+    getExpensesByTrip, // ADD trip expenses function
     refetch: fetchData
   };
 }
