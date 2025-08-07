@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowUpRight, ArrowDownLeft, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface Transaction {
   id: string;
@@ -16,6 +18,8 @@ interface RecentTransactionsProps {
 }
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  const navigate = useNavigate();
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -45,10 +49,23 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
     return colors[category] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleViewAll = () => {
+    navigate('/transactions');
+  };
+
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleViewAll}
+          className="flex items-center gap-2"
+        >
+          <Eye className="h-4 w-4" />
+          View All
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         {transactions.length === 0 ? (
