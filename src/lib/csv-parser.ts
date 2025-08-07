@@ -199,7 +199,7 @@ export function parsePersonalCapitalCSV(csvContent: string): ParsedTransaction[]
         transactions.push({
           date,
           description: description.substring(0, 255), // Limit description length
-          amount_usd: Math.abs(amount),
+          amount_usd: amount,
           amount_gbp: amountGbp, // Keep negative values for expenses
           currency: "USD",
           category,
