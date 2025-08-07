@@ -76,6 +76,7 @@ const Index = () => {
     }
   };
 
+  // REMOVED: fetchTrips function - now handled by useTransactions hook
 
   const handleTransactionsUploaded = () => {
     setRefreshKey(prev => prev + 1);
@@ -85,6 +86,7 @@ const Index = () => {
     }
     
     fetchFamilyBalances();
+    // REMOVED: fetchTrips() - now handled by useTransactions hook refetch
     
     toast({
       title: "Success!",
@@ -127,6 +129,7 @@ const Index = () => {
     }
   };
 
+  // IMPROVED DATA PROCESSING - Fixed to work with existing types
   const getFilteredTransactions = () => {
     return transactions.filter(t => t.transaction_type !== 'transfer');
   };
@@ -144,14 +147,14 @@ const Index = () => {
       // Handle INCOME category - only include positive amounts (refunds)
       if (categoryName === 'Income') {
         if (amount > 0) {
-          categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) - amount;
+          categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + amount; // Refunds reduce expenses
         }
         return;
       }
       
-      // For other categories, include negative amounts (actual expenses)
+      // For other categories, include negative amounts (actual expenses) but show as positive
       if (amount < 0) {
-        categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + amount;
+        categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + Math.abs(amount);
       }
     });
 
@@ -170,7 +173,7 @@ const Index = () => {
         amount,
         color: colors[index % colors.length]
       }))
-      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+      .sort((a, b) => b.amount - a.amount); // Sort by amount descending
   };
 
   const getImprovedExpensesOverTime = () => {
@@ -184,14 +187,19 @@ const Index = () => {
       
       // Apply same filtering as category chart
       if (categoryName === 'Investment') return;
-      if (categoryName === 'Income' && amount <= 0) return;
       
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = {};
       }
       
-      if (amount < 0 || (categoryName === 'Income' && amount > 0)) {
-        monthlyData[monthKey][categoryName] = (monthlyData[monthKey][categoryName] || 0) + amount;
+      if (categoryName === 'Income') {
+        // Only include positive income amounts (refunds)
+        if (amount > 0) {
+          monthlyData[monthKey][categoryName] = (monthlyData[monthKey][categoryName] || 0) + amount;
+        }
+      } else if (amount < 0) {
+        // For other categories, include negative amounts but store as positive
+        monthlyData[monthKey][categoryName] = (monthlyData[monthKey][categoryName] || 0) + Math.abs(amount);
       }
     });
 
@@ -210,11 +218,12 @@ const Index = () => {
       .sort((a, b) => a.month.localeCompare(b.month));
   };
 
+  // SIMPLIFIED: Trip functions now use data directly from transactions (fixed)
   const getImprovedExpensesByTrip = () => {
     const tripTotals: Record<string, number> = {};
     
     getFilteredTransactions().forEach(transaction => {
-      const tripName = transaction.trip?.name; // Direct access to trip name
+      const tripName = transaction.trip?.name; // This should work now
       
       if (!tripName) return; // Only include transactions with trips
       
@@ -223,10 +232,15 @@ const Index = () => {
       
       // Use same filtering logic as expenses
       if (categoryName === 'Investment') return;
-      if (categoryName === 'Income' && amount <= 0) return;
       
-      if (amount < 0 || (categoryName === 'Income' && amount > 0)) {
-        tripTotals[tripName] = (tripTotals[tripName] || 0) + amount;
+      if (categoryName === 'Income') {
+        // Only include positive income amounts (refunds)  
+        if (amount > 0) {
+          tripTotals[tripName] = (tripTotals[tripName] || 0) + amount;
+        }
+      } else if (amount < 0) {
+        // For other categories, include negative amounts but store as positive
+        tripTotals[tripName] = (tripTotals[tripName] || 0) + Math.abs(amount);
       }
     });
 
@@ -241,7 +255,43 @@ const Index = () => {
         amount,
         color: colors[index % colors.length]
       }))
-      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+      .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+  };
+
+  const getImprovedSavingsOverTime = () => {
+    const monthlyData: Record<string, { income: number; expenses: number }> = {};
+    
+    getFilteredTransactions().forEach(transaction => {
+      const date = new Date(transaction.date);
+      const monthKey = date.toISOString().slice(0, 7);
+      const categoryName = transaction.category?.name || 'Uncategorized';
+      const amount = transaction.amount_gbp || 0;
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { income: 0, expenses: 0 };
+      }
+      
+      // FIXED: Proper savings calculation excluding investments
+      if (categoryName === 'Investment') return; // Skip investments entirely
+      
+      if (categoryName === 'Income' && amount > 0) {
+        // Positive income amounts
+        monthlyData[monthKey].income += amount;
+      } else if (amount < 0) {
+        // Negative amounts are expenses - convert to positive for calculation
+        monthlyData[monthKey].expenses += Math.abs(amount);
+      }
+    });
+
+    return Object.entries(monthlyData)
+      .map(([month, data]) => ({
+        month: new Date(month + '-01').toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        }),
+        amount: data.income - data.expenses // Savings = Income - Expenses (both as positive numbers)
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
   };
 
   const getInvestmentsOverTime = () => {
@@ -257,7 +307,7 @@ const Index = () => {
       // or transactions in the "Investment" category
       if (categoryName === 'Investment' || 
           (amount < 0 && ['Wealthfront', 'Fidelity', 'Vanguard', 'Dodl'].includes(transaction.account?.name || ''))) {
-        monthlyInvestments[monthKey] = (monthlyInvestments[monthKey] || 0) + amount;
+        monthlyInvestments[monthKey] = (monthlyInvestments[monthKey] || 0) + Math.abs(amount);
       }
     });
 
@@ -315,39 +365,44 @@ const Index = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <ExpensesByCategory 
-              key={`expenses-category-${refreshKey}`}
-              data={getImprovedExpensesByCategory()} 
-            />
-            <ExpensesOverTime 
-              key={`expenses-time-${refreshKey}`}
-              data={getImprovedExpensesOverTime()} 
-            />
-            <IncomeOverTime 
-              key={`income-time-${refreshKey}`}
-              data={last12MonthsData.map(m => ({ 
-                month: m.month, 
-                amount: m.income
-              }))} 
-            />
-            <SavingsOverTime 
-              key={`savings-time-${refreshKey}`}
-              data={last12MonthsData.map(m => ({ 
-                month: m.month, 
-                amount: m.savings
-              }))} 
-            />
-            <InvestmentsOverTime 
-              key={`investments-time-${refreshKey}`}
-              data={getInvestmentsOverTime()}
-            />
-            <ExpensesByTrip 
-              key={`expenses-trip-${refreshKey}`}
-              data={getImprovedExpensesByTrip()}
-            />
-           
-          </div>
+          <div className="space-y-8">
+  {/* Full-width Expenses Over Time chart */}
+  <div className="w-full">
+    <ExpensesOverTime 
+      key={`expenses-time-${refreshKey}`}
+      data={getImprovedExpensesOverTime()} 
+    />
+  </div>
+
+  {/* Rest of the charts in 2-column grid */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <ExpensesByCategory 
+      key={`expenses-category-${refreshKey}`}
+      data={getImprovedExpensesByCategory()} 
+    />
+    <IncomeOverTime 
+      key={`income-time-${refreshKey}`}
+      data={last12MonthsData.map(m => ({ 
+        month: m.month, 
+        amount: m.income
+      }))} 
+    />
+    <SavingsOverTime 
+      key={`savings-time-${refreshKey}`}
+      data={getImprovedSavingsOverTime()}
+    />        
+    <InvestmentsOverTime 
+      key={`investments-time-${refreshKey}`}
+      data={getInvestmentsOverTime()}
+    />
+    <ExpensesByTrip 
+      key={`expenses-trip-${refreshKey}`}
+      data={getImprovedExpensesByTrip()}
+    />
+    {/* Add a placeholder div if you want even number of items in the grid */}
+    <div></div>
+  </div>
+</div>
         </div>
       </div>
     </ProtectedRoute>

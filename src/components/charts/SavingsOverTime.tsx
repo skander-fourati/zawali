@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList } from 'recharts';
 
 interface SavingsOverTimeProps {
   data: Array<{
@@ -14,7 +14,7 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
   const chartConfig = {
     amount: {
       label: 'Monthly Savings',
-      color: 'hsl(var(--primary))',
+      color: '#8B6914', // Dark yellow/gold
     },
   };
 
@@ -22,18 +22,22 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
-    }).format(value);
+    }).format(Math.abs(value)); // Show absolute value in formatting
   };
 
-  // EXPLANATION: Savings can be positive (you saved money) or negative (you spent more than earned)
-  // We don't need to convert to absolute values here because:
-  // - Positive savings = good (green bars going up)
-  // - Negative savings = overspending (red bars going down)
-  const processedData = data.map(item => ({
-    ...item,
-    // Keep the original amount - positive for savings, negative for overspending
-    amount: item.amount
-  }));
+  // Custom tooltip that doesn't show "Savings" text
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0].value;
+      return (
+        <div className="bg-white p-2 border rounded shadow">
+          <p className="font-medium">{formatCurrency(value)}</p>
+          {value < 0 && <p className="text-sm text-red-600">(Overspending)</p>}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
@@ -44,7 +48,7 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={data} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
               <XAxis 
                 dataKey="month" 
                 tick={{ fontSize: 12 }}
@@ -54,18 +58,22 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
                 tickFormatter={formatCurrency}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent />}
-                formatter={(value: number) => [
-                  formatCurrency(Math.abs(value)), 
-                  value >= 0 ? 'Savings' : 'Overspending'
-                ]}
+                content={<CustomTooltip />}
               />
               <Bar 
                 dataKey="amount" 
-                // Dynamic color: green for positive (savings), red for negative (overspending)
-                fill="hsl(var(--primary))"
+                fill="#8B6914" // Dark yellow/gold
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                {/* Add total labels on top of bars */}
+                <LabelList
+                  dataKey="amount"
+                  position="top"
+                  formatter={(value: number) => formatCurrency(value)}
+                  fontSize={12}
+                  fill="#666"
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

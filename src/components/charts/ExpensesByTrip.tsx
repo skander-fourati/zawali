@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, Cell } from 'recharts';
 
 interface ExpensesByTripProps {
   data: Array<{
@@ -27,11 +27,39 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
     }).format(value);
   };
 
-  // FIXED: Convert negative amounts to positive for display
-  const processedData = data.map(item => ({
-    ...item,
-    amount: Math.abs(item.amount) // Show expenses as positive amounts
-  }));
+  // FIXED: Convert negative amounts to positive for display with muted colors
+  const processedData = data.map((item, index) => {
+    // Use muted/pastel colors for trips
+    const mutedColors = [
+      '#8B9DC3', // Muted blue
+      '#DDA0A0', // Muted red/pink
+      '#A8C4A2', // Muted green
+      '#E6C18A', // Muted orange
+      '#C8A4C8', // Muted purple
+      '#9FC5C5', // Muted teal
+      '#D4B4A8', // Muted brown
+      '#B8C4A4'  // Muted olive
+    ];
+    
+    return {
+      ...item,
+      amount: Math.abs(item.amount), // Show expenses as positive amounts
+      color: mutedColors[index % mutedColors.length]
+    };
+  });
+
+  // Custom tooltip that shows just the trip and amount
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0].value;
+      return (
+        <div className="bg-white p-2 border rounded shadow">
+          <p className="font-medium">{`${label}: ${formatCurrency(value)}`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
@@ -41,7 +69,7 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={processedData} margin={{ top: 30, right: 30, left: 20, bottom: 80 }}>
               <XAxis 
                 dataKey="trip" 
                 tick={{ fontSize: 12 }}
@@ -54,14 +82,25 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
                 tickFormatter={formatCurrency}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent />}
-                formatter={(value: number) => [formatCurrency(value), 'Amount']}
+                content={<CustomTooltip />}
               />
               <Bar 
                 dataKey="amount" 
-                fill="hsl(var(--chart-2))" // Different color from categories
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                {/* Add total labels on top of bars */}
+                <LabelList
+                  dataKey="amount"
+                  position="top"
+                  formatter={(value: number) => formatCurrency(value)}
+                  fontSize={12}
+                  fill="#666"
+                />
+                {/* Use different colors for each bar */}
+                {processedData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

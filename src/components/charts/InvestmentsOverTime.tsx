@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList } from 'recharts';
 
 interface InvestmentsOverTimeProps {
   data: Array<{
@@ -14,7 +14,7 @@ export function InvestmentsOverTime({ data }: InvestmentsOverTimeProps) {
   const chartConfig = {
     amount: {
       label: 'Monthly Investments',
-      color: 'hsl(var(--chart-1))', // Using a distinct color for investments
+      color: '#4A1A4A', // Dark purple
     },
   };
 
@@ -23,6 +23,19 @@ export function InvestmentsOverTime({ data }: InvestmentsOverTimeProps) {
       style: 'currency',
       currency: 'GBP',
     }).format(value);
+  };
+
+  // Custom tooltip that doesn't show unnecessary text
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0].value;
+      return (
+        <div className="bg-white p-2 border rounded shadow">
+          <p className="font-medium">{formatCurrency(value)}</p>
+        </div>
+      );
+    }
+    return null;
   };
 
   // EXPLANATION: For investments, we want to show the absolute value
@@ -40,7 +53,7 @@ export function InvestmentsOverTime({ data }: InvestmentsOverTimeProps) {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={processedData} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
               <XAxis 
                 dataKey="month" 
                 tick={{ fontSize: 12 }}
@@ -50,14 +63,22 @@ export function InvestmentsOverTime({ data }: InvestmentsOverTimeProps) {
                 tickFormatter={formatCurrency}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent />}
-                formatter={(value: number) => [formatCurrency(value), 'Investments']}
+                content={<CustomTooltip />}
               />
               <Bar 
                 dataKey="amount" 
-                fill="hsl(220, 90%, 56%)" // Blue color for investments
+                fill="#4A1A4A" // Dark purple
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                {/* Add total labels on top of bars */}
+                <LabelList
+                  dataKey="amount"
+                  position="top"
+                  formatter={(value: number) => formatCurrency(value)}
+                  fontSize={12}
+                  fill="#666"
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
