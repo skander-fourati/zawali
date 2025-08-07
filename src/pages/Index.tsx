@@ -9,9 +9,8 @@ import { ExpensesByCategory } from "@/components/charts/ExpensesByCategory";
 import { ExpensesOverTime } from "@/components/charts/ExpensesOverTime";
 import { IncomeOverTime } from "@/components/charts/IncomeOverTime";
 import { SavingsOverTime } from "@/components/charts/SavingsOverTime";
-// Uncomment when you create these new components
-// import { InvestmentsOverTime } from "@/components/charts/InvestmentsOverTime";
-// import { ExpensesByTrip } from "@/components/charts/ExpensesByTrip";
+import { InvestmentsOverTime } from "@/components/charts/InvestmentsOverTime";
+import { ExpensesByTrip } from "@/components/charts/ExpensesByTrip";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -77,7 +76,6 @@ const Index = () => {
     }
   };
 
-  // REMOVED: fetchTrips function - now handled by useTransactions hook
 
   const handleTransactionsUploaded = () => {
     setRefreshKey(prev => prev + 1);
@@ -87,7 +85,6 @@ const Index = () => {
     }
     
     fetchFamilyBalances();
-    // REMOVED: fetchTrips() - now handled by useTransactions hook refetch
     
     toast({
       title: "Success!",
@@ -130,7 +127,6 @@ const Index = () => {
     }
   };
 
-  // IMPROVED DATA PROCESSING - Fixed to work with existing types
   const getFilteredTransactions = () => {
     return transactions.filter(t => t.transaction_type !== 'transfer');
   };
@@ -214,7 +210,6 @@ const Index = () => {
       .sort((a, b) => a.month.localeCompare(b.month));
   };
 
-  // SIMPLIFIED: Trip functions now use data directly from transactions
   const getImprovedExpensesByTrip = () => {
     const tripTotals: Record<string, number> = {};
     
@@ -343,8 +338,6 @@ const Index = () => {
                 amount: m.savings
               }))} 
             />
-            {/* NEW CHARTS - Uncomment when you create these components */}
-            {/*
             <InvestmentsOverTime 
               key={`investments-time-${refreshKey}`}
               data={getInvestmentsOverTime()}
@@ -353,7 +346,7 @@ const Index = () => {
               key={`expenses-trip-${refreshKey}`}
               data={getImprovedExpensesByTrip()}
             />
-            */}
+           
           </div>
         </div>
       </div>
