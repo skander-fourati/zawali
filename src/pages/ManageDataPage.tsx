@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tag, MapPin, Building, ArrowLeft } from "lucide-react";
+import { Tag, MapPin, Building, Users, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import CategoryManagement from "@/components/settings/CategoryManagement";
 import TripManagement from "@/components/settings/TripManagement";
 import AccountManagement from "@/components/settings/AccountManagement";
+import FamilyMemberManagement from "@/components/settings/FamilyMemberManagement";
 
 const ManageDataPage: React.FC = () => {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ const ManageDataPage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-lg font-semibold">Organize Your Financial Data</h2>
-              <p className="text-muted-foreground">Manage categories, trips, and accounts to better organize your transactions.</p>
+              <p className="text-muted-foreground">Manage categories, trips, accounts, and family members to better organize your transactions.</p>
             </div>
           </div>
         </CardContent>
@@ -48,7 +49,7 @@ const ManageDataPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="categories" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             Categories
@@ -60,6 +61,10 @@ const ManageDataPage: React.FC = () => {
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             Accounts
+          </TabsTrigger>
+          <TabsTrigger value="family" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Family
           </TabsTrigger>
         </TabsList>
 
@@ -76,6 +81,11 @@ const ManageDataPage: React.FC = () => {
         {/* Accounts Tab */}
         <TabsContent value="accounts" className="mt-6">
           <AccountManagement />
+        </TabsContent>
+
+        {/* Family Members Tab */}
+        <TabsContent value="family" className="mt-6">
+          <FamilyMemberManagement />
         </TabsContent>
       </Tabs>
     </div>
