@@ -1,18 +1,31 @@
 import { Button } from "@/components/ui/button";
-import { Plus, LogOut } from "lucide-react"; // Removed Upload since we don't need it
+import { Plus, Settings, LogOut, Database, User, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { TransactionUploadButton } from "./TransactionUploadButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DashboardHeaderProps {
   onAddBalanceClick: () => void;
-  onTransactionsUploaded?: () => void; // Optional callback for data refresh
+  onTransactionsUploaded?: () => void;
 }
 
 export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: DashboardHeaderProps) {
   const { signOut, user } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleManageData = () => {
+    navigate('/manage-data');
   };
 
   return (
@@ -26,7 +39,6 @@ export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: D
         </div>
         
         <div className="flex gap-3">
-          {/* Replace the old upload button with the new component */}
           <TransactionUploadButton 
             onTransactionsUploaded={onTransactionsUploaded}
             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
@@ -41,14 +53,44 @@ export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: D
             Add Balance
           </Button>
 
-          <Button 
-            variant="secondary"
-            onClick={handleSignOut}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          {/* Settings Dropdown - replaces the old Sign Out button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="secondary"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleManageData} className="cursor-pointer">
+                <Database className="mr-2 h-4 w-4" />
+                Manage Data
+              </DropdownMenuItem>
+              
+              {/* Future features - grayed out */}
+              <DropdownMenuItem disabled className="opacity-50">
+                <User className="mr-2 h-4 w-4" />
+                Account Settings
+                <span className="ml-auto text-xs text-muted-foreground">Soon</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem disabled className="opacity-50">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Billing
+                <span className="ml-auto text-xs text-muted-foreground">Soon</span>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600 focus:text-red-600">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

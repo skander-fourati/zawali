@@ -7,14 +7,14 @@ interface ExpensesByCategoryProps {
   data: Array<{
     category: string;
     amount: number;
-    color: string;
+    color: string; // This will now come from the database
   }>;
 }
 
 export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
-  // EXPLANATION: This is the same color palette used in the stacked chart
-  // We're copying it here to ensure consistent colors across both charts
-  const dashboardColors = [
+  // EXPLANATION: Fallback color palette for categories without user-defined colors
+  // This ensures we always have colors even if some categories don't have colors set
+  const fallbackColors = [
     'hsl(220, 85%, 65%)', // Rich blue
     'hsl(15, 80%, 65%)',  // Coral/salmon  
     'hsl(200, 75%, 65%)', // Teal blue
@@ -37,46 +37,40 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
   };
 
   // EXPLANATION: Process the data for the pie chart
-  // 1. Make negative amounts positive (expenses are usually negative)
-  // 2. Filter out zero amounts (no point showing empty slices)  
-  // 3. Sort by amount (biggest slices first)
-  // 4. Assign colors from our palette
+  // Now we use the color from the database, or fall back to our palette if no color is set
   const processedData = data
-    .map(item => ({
-      ...item,
-      amount: Math.abs(item.amount) // Convert negative to positive
-    }))
-    .filter(item => item.amount > 0) // Only show categories with actual expenses
-    .sort((a, b) => b.amount - a.amount) // Sort descending (biggest first)
     .map((item, index) => ({
       ...item,
-      color: dashboardColors[index % dashboardColors.length] // Assign colors in order
-    }));
+      amount: Math.abs(item.amount), // Convert negative to positive
+      // Use database color if available, otherwise use fallback palette
+      finalColor: item.color || fallbackColors[index % fallbackColors.length]
+    }))
+    .filter(item => item.amount > 0) // Only show categories with actual expenses
+    .sort((a, b) => b.amount - a.amount); // Sort descending (biggest first)
 
-  // EXPLANATION: Chart config for consistent theming
-  const chartConfig = processedData.reduce((config, item, index) => {
+  // EXPLANATION: Chart config now uses the actual colors from data
+  const chartConfig = processedData.reduce((config, item) => {
     config[item.category] = {
       label: item.category,
-      color: dashboardColors[index % dashboardColors.length],
+      color: item.finalColor, // Use the final resolved color
     };
     return config;
   }, {} as any);
 
-  // EXPLANATION: Custom tooltip that matches the stacked chart style
-  // This creates the popup box when you hover over pie slices
+  // EXPLANATION: Custom tooltip that shows the category with its color
   const customTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
     
-    const data = payload[0].payload; // Get the data for the hovered slice
+    const data = payload[0].payload;
     
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm max-w-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            {/* Color indicator circle - matches the slice color */}
+            {/* Color indicator circle - uses the resolved color */}
             <div 
               className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-              style={{ backgroundColor: data.color }}
+              style={{ backgroundColor: data.finalColor }}
             />
             <span className="text-gray-700">{data.category}:</span>
           </div>
@@ -88,8 +82,21 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
     );
   };
 
-  // EXPLANATION: Calculate total for percentage labels
-  const total = processedData.reduce((sum, item) => sum + item.amount, 0);
+  // If no data, show empty state
+  if (processedData.length === 0) {
+    return (
+      <Card className="bg-gradient-card shadow-soft border-0">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Monthly Expenses by Category</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+            <p>No expense data available</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-gradient-card shadow-soft border-0">
@@ -102,26 +109,24 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
             <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 60 }}>
               <Pie
                 data={processedData}
-                cx="30%" /* Shift more to the left (was 35%) */
-                cy="50%" /* Keep vertically centered */
-                outerRadius={130} /* Larger size (was 100) */
-                fill="#8884d8" /* Default fill (overridden by Cell colors) */
-                dataKey="amount" /* Which field contains the values */
-                /* Full category names with percentages and connecting lines */
+                cx="30%" 
+                cy="50%" 
+                outerRadius={130} 
+                fill="#8884d8" 
+                dataKey="amount" 
                 label={({ category, percent }) => {
                   return `${category} (${(percent * 100).toFixed(0)}%)`;
                 }}
-                labelLine={true} /* Show connecting lines to labels */
+                labelLine={true} 
               >
-                {/* EXPLANATION: Cell components set individual colors for each slice */}
+                {/* EXPLANATION: Each slice gets its resolved color (database color or fallback) */}
                 {processedData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
-                    fill={entry.color} /* Use our custom color */
+                    fill={entry.finalColor} /* Use the resolved color */
                   />
                 ))}
               </Pie>
-              {/* Use our custom tooltip */}
               <ChartTooltip content={customTooltip} />
             </PieChart>
           </ResponsiveContainer>

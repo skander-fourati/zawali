@@ -39,6 +39,9 @@ const Index = () => {
     status: 'active' | 'inactive';
   }>>([]);
   
+  // ADD this line after the familyBalances state
+const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
+
   // REMOVED: No need for separate trips state - it's in the hook now
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -51,9 +54,12 @@ const Index = () => {
   useEffect(() => {
     if (user) {
       fetchFamilyBalances();
+      fetchCategoryColors(); // ADD this line
       // REMOVED: fetchTrips() - now handled by useTransactions hook
     }
   }, [user]);
+
+  
 
   const fetchFamilyBalances = async () => {
     try {
@@ -76,6 +82,33 @@ const Index = () => {
     }
   };
 
+  // ADD this entire function after fetchFamilyBalances()
+const fetchCategoryColors = async () => {
+  if (!user) return;
+  
+  try {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('name, color')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error fetching category colors:', error);
+      return;
+    }
+
+    const colorMap = categories?.reduce((acc, category) => {
+      if (category.color) {
+        acc[category.name] = category.color;
+      }
+      return acc;
+    }, {} as Record<string, string>) || {};
+
+    setCategoryColors(colorMap);
+  } catch (error) {
+    console.error('Error fetching category colors:', error);
+  }
+};
   // REMOVED: fetchTrips function - now handled by useTransactions hook
 
   const handleTransactionsUploaded = () => {
@@ -86,7 +119,7 @@ const Index = () => {
     }
     
     fetchFamilyBalances();
-    // REMOVED: fetchTrips() - now handled by useTransactions hook refetch
+    fetchCategoryColors();
     
     toast({
       title: "Success!",
@@ -157,7 +190,8 @@ const Index = () => {
         categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + Math.abs(amount);
       }
     });
-
+  
+    // Fallback colors (same as your original)
     const colors = [
       'hsl(220, 70%, 50%)', 
       'hsl(10, 70%, 50%)', 
@@ -171,7 +205,8 @@ const Index = () => {
       .map(([category, amount], index) => ({
         category,
         amount,
-        color: colors[index % colors.length]
+        // ✅ FIXED: Use database color first, then fallback
+        color: categoryColors[category] || colors[index % colors.length]
       }))
       .sort((a, b) => b.amount - a.amount); // Sort by amount descending
   };
@@ -370,7 +405,8 @@ const Index = () => {
   <div className="w-full">
     <ExpensesOverTime 
       key={`expenses-time-${refreshKey}`}
-      data={getImprovedExpensesOverTime()} 
+      data={getImprovedExpensesOverTime()}
+      categoryColors={categoryColors} 
     />
   </div>
 
