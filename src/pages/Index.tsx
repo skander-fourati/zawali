@@ -327,6 +327,9 @@ const Index = () => {
       family_member: {
         name: t.family_member?.name || 'Unknown',
         color: t.family_member?.color || '#gray'
+      },
+      account: {
+        name: t.account?.name || 'Unknown Account'
       }
     }));
 
@@ -363,7 +366,6 @@ const Index = () => {
             <FamilyBalances 
               balances={familyBalances}
               recentTransactions={recentFamilyTransactions}
-              onAddTransaction={handleAddTransactionClick} // UPDATED: Changed prop name
             />
           </div>
 

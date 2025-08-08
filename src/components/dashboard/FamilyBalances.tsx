@@ -24,15 +24,17 @@ interface RecentTransaction {
     name: string;
     color: string;
   };
+  account: {
+    name: string;
+  };
 }
 
 interface FamilyBalancesProps {
   balances: FamilyBalance[];
   recentTransactions: RecentTransaction[];
-  onAddTransaction: () => void;
 }
 
-export function FamilyBalances({ balances, recentTransactions, onAddTransaction }: FamilyBalancesProps) {
+export function FamilyBalances({ balances, recentTransactions }: FamilyBalancesProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -90,15 +92,6 @@ export function FamilyBalances({ balances, recentTransactions, onAddTransaction 
           <Users className="h-5 w-5" />
           Family Balances
         </CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onAddTransaction}
-          className="hover:bg-primary hover:text-primary-foreground"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Transaction
-        </Button>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Family Member Balances */}
@@ -125,24 +118,11 @@ export function FamilyBalances({ balances, recentTransactions, onAddTransaction 
                     </div>
                     
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{member.name}</p>
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs ${getStatusColor(member.status)}`}
-                        >
-                          {member.status}
-                        </Badge>
-                      </div>
+                      <p className="font-medium">{member.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-muted-foreground">
                           Last: {formatDate(member.lastTransaction)}
                         </span>
-                        {member.transactionCount > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            • {member.transactionCount} transactions
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -154,7 +134,7 @@ export function FamilyBalances({ balances, recentTransactions, onAddTransaction 
                     </div>
                     {member.balance !== 0 && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Received: {formatCurrency(member.totalReceived)} | Given: {formatCurrency(member.totalGiven)}
+                        Received: {formatCurrency(member.totalReceived)} | Spent: {formatCurrency(member.totalGiven)}
                       </p>
                     )}
                   </div>
@@ -167,16 +147,10 @@ export function FamilyBalances({ balances, recentTransactions, onAddTransaction 
         {/* Recent Family Transactions */}
         {recentTransactions.length > 0 && (
           <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Recent Family Transactions
-              </h4>
-              <Button variant="ghost" size="sm" className="text-xs">
-                View All
-                <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
+            <h4 className="font-medium text-sm text-muted-foreground flex items-center gap-2 mb-3">
+              <Calendar className="h-4 w-4" />
+              Recent Family Transactions
+            </h4>
             
             <div className="space-y-2">
               {recentTransactions.slice(0, 3).map((transaction) => (
@@ -195,6 +169,10 @@ export function FamilyBalances({ balances, recentTransactions, onAddTransaction 
                         <span className="text-xs text-muted-foreground">•</span>
                         <span className="text-xs text-muted-foreground">
                           {formatDate(transaction.date)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <span className="text-xs text-muted-foreground">
+                          {transaction.account?.name || 'Unknown Account'}
                         </span>
                       </div>
                     </div>
