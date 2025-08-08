@@ -8,6 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
+interface FamilyMember {
+  id: string;
+  name: string;
+  color: string;
+  status: string;
+}
+
 interface AddEditTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -40,11 +47,40 @@ export function AddEditTransactionModal({
     category_id: '',
     account_id: '',
     trip_id: '',
+    family_member_id: '',
     encord_expensable: false,
     transaction_type: 'expense'
   });
   
   const [loading, setLoading] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+
+  // Find Family Transfer category
+  const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+  const isFamilyTransfer = formData.category_id === familyTransferCategory?.id;
+
+  // Fetch family members when modal opens
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchFamilyMembers();
+    }
+  }, [isOpen, user]);
+
+  const fetchFamilyMembers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('family_members')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) throw error;
+      setFamilyMembers(data || []);
+    } catch (error) {
+      console.error('Error fetching family members:', error);
+    }
+  };
 
   // Reset form when transaction changes or modal opens
   useEffect(() => {
@@ -55,9 +91,10 @@ export function AddEditTransactionModal({
         amount_gbp: transaction.amount_gbp?.toString() || '',
         currency: transaction.currency || 'GBP',
         amount: transaction.amount?.toString() || '',
-        category_id: transaction.category_id || 'none',  // Use 'none' instead of empty string
-        account_id: transaction.account_id || 'none',    // Use 'none' instead of empty string
-        trip_id: transaction.trip_id || 'none',         // Use 'none' instead of empty string
+        category_id: transaction.category_id || 'none',
+        account_id: transaction.account_id || 'none',
+        trip_id: transaction.trip_id || 'none',
+        family_member_id: transaction.family_member_id || 'none',
         encord_expensable: transaction.encord_expensable || false,
         transaction_type: transaction.transaction_type || 'expense'
       });
@@ -70,9 +107,10 @@ export function AddEditTransactionModal({
         amount_gbp: '',
         currency: 'GBP',
         amount: '',
-        category_id: 'none',    // Use 'none' instead of empty string
-        account_id: 'none',     // Use 'none' instead of empty string
-        trip_id: 'none',        // Use 'none' instead of empty string
+        category_id: 'none',
+        account_id: 'none',
+        trip_id: 'none',
+        family_member_id: 'none',
         encord_expensable: false,
         transaction_type: 'expense'
       });
@@ -99,6 +137,20 @@ export function AddEditTransactionModal({
           setFormData(prev => ({ ...prev, amount_gbp: gbpAmount }));
         }
       }
+    }
+
+    // Auto-set transaction type for Family Transfer
+    if (field === 'category_id' && value === familyTransferCategory?.id) {
+      setFormData(prev => ({ ...prev, transaction_type: 'transfer' }));
+    }
+
+    // Clear family member and reset transaction type if not Family Transfer
+    if (field === 'category_id' && value !== familyTransferCategory?.id) {
+      setFormData(prev => ({ 
+        ...prev, 
+        family_member_id: 'none',
+        transaction_type: 'expense' // Default back to expense for non-family transfers
+      }));
     }
   };
 
@@ -133,6 +185,16 @@ export function AddEditTransactionModal({
       return;
     }
 
+    // Family Transfer specific validation
+    if (isFamilyTransfer && (!formData.family_member_id || formData.family_member_id === 'none')) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a family member for Family Transfer transactions.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -147,6 +209,7 @@ export function AddEditTransactionModal({
         category_id: formData.category_id === 'none' ? null : formData.category_id || null,
         account_id: formData.account_id === 'none' ? null : formData.account_id || null,
         trip_id: formData.trip_id === 'none' ? null : formData.trip_id || null,
+        family_member_id: formData.family_member_id === 'none' ? null : formData.family_member_id || null,
         encord_expensable: formData.encord_expensable,
         transaction_type: formData.transaction_type
       };
@@ -282,6 +345,37 @@ export function AddEditTransactionModal({
             </Select>
           </div>
 
+          {/* Family Member (conditional) */}
+          {isFamilyTransfer && (
+            <div className="space-y-2">
+              <Label htmlFor="family_member">Family Member</Label>
+              <Select value={formData.family_member_id} onValueChange={(value) => handleInputChange('family_member_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select family member" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select family member</SelectItem>
+                  {familyMembers.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full border"
+                          style={{ backgroundColor: member.color }}
+                        />
+                        {member.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {familyMembers.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No active family members found. Add family members in Settings → Manage Data → Family.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Account */}
           <div className="space-y-2">
             <Label htmlFor="account">Account</Label>
@@ -320,20 +414,7 @@ export function AddEditTransactionModal({
             </div>
           )}
 
-          {/* Transaction Type */}
-          <div className="space-y-2">
-            <Label htmlFor="type">Transaction Type</Label>
-            <Select value={formData.transaction_type} onValueChange={(value) => handleInputChange('transaction_type', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {/* Encord Expensable */}
           <div className="flex items-center space-x-2">

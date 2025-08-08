@@ -12,11 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface DashboardHeaderProps {
-  onAddBalanceClick: () => void;
+  onAddTransactionClick: () => void;
   onTransactionsUploaded?: () => void;
 }
 
-export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: DashboardHeaderProps) {
+export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded }: DashboardHeaderProps) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
 
@@ -46,11 +46,11 @@ export function DashboardHeader({ onAddBalanceClick, onTransactionsUploaded }: D
           
           <Button 
             variant="secondary"
-            onClick={onAddBalanceClick}
+            onClick={onAddTransactionClick}
             className="bg-white/10 hover:bg-white/20 text-white border-white/20"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Balance
+            Add Transaction
           </Button>
 
           {/* Settings Dropdown - replaces the old Sign Out button */}

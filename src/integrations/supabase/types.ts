@@ -98,34 +98,28 @@ export type Database = {
         }
         Relationships: []
       }
-      family_balances: {
+      family_members: {
         Row: {
           created_at: string
           id: string
-          last_transaction: string | null
           name: string
           status: string
-          total_sent: number
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          last_transaction?: string | null
           name: string
           status?: string
-          total_sent?: number
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          last_transaction?: string | null
           name?: string
           status?: string
-          total_sent?: number
           updated_at?: string
           user_id?: string
         }
@@ -170,6 +164,7 @@ export type Database = {
           description: string
           encord_expensable: boolean
           exchange_rate: number | null
+          family_member_id: string | null
           id: string
           notes: string | null
           transaction_type: string
@@ -188,6 +183,7 @@ export type Database = {
           description: string
           encord_expensable?: boolean
           exchange_rate?: number | null
+          family_member_id?: string | null
           id?: string
           notes?: string | null
           transaction_type: string
@@ -206,6 +202,7 @@ export type Database = {
           description?: string
           encord_expensable?: boolean
           exchange_rate?: number | null
+          family_member_id?: string | null
           id?: string
           notes?: string | null
           transaction_type?: string
@@ -226,6 +223,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
           {

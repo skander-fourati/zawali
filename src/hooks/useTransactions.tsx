@@ -11,7 +11,8 @@ export interface Transaction {
   exchange_rate: number;
   amount_gbp: number;
   transaction_type: 'income' | 'expense' | 'transfer';
-  trip_id: string | null; // ADD trip_id to interface
+  trip_id: string | null;
+  family_member_id: string | null; // NEW: Family member reference
   category: {
     id: string;
     name: string;
@@ -25,7 +26,13 @@ export interface Transaction {
   trip: {
     id: string;
     name: string;
-  } | null; // ADD trip data to interface
+  } | null;
+  family_member: { // NEW: Family member data
+    id: string;
+    name: string;
+    color: string;
+    status: 'active' | 'settled' | 'archived';
+  } | null;
 }
 
 export interface Category {
@@ -42,7 +49,6 @@ export interface Account {
   currency: string;
 }
 
-// ADD Trip interface
 export interface Trip {
   id: string;
   name: string;
@@ -51,11 +57,23 @@ export interface Trip {
   updated_at?: string;
 }
 
+// NEW: Family member interface
+export interface FamilyMember {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  status: 'active' | 'settled' | 'archived';
+  created_at?: string;
+  updated_at?: string;
+}
+
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [trips, setTrips] = useState<Trip[]>([]); // ADD trips state
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]); // NEW: Family members state
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -69,16 +87,17 @@ export function useTransactions() {
     try {
       setLoading(true);
 
-      // UPDATED: Fetch transactions with trip data included
+      // UPDATED: Fetch transactions with family member data included
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
           *,
           category:categories(*),
           account:accounts(*),
-          trip:trips(id, name)
+          trip:trips(id, name),
+          family_member:family_members(id, name, color, status)
         `)
-        .eq('user_id', user?.id) // Make sure we filter by user
+        .eq('user_id', user?.id)
         .order('date', { ascending: false });
 
       if (transactionsError) throw transactionsError;
@@ -87,7 +106,7 @@ export function useTransactions() {
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
-        .eq('user_id', user?.id) // Filter by user
+        .eq('user_id', user?.id)
         .order('name');
 
       if (categoriesError) throw categoriesError;
@@ -96,27 +115,38 @@ export function useTransactions() {
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
         .select('*')
-        .eq('user_id', user?.id) // Filter by user
+        .eq('user_id', user?.id)
         .order('name');
 
       if (accountsError) throw accountsError;
 
-      // ADD: Fetch trips separately for easy access
+      // Fetch trips
       const { data: tripsData, error: tripsError } = await supabase
         .from('trips')
         .select('*')
         .eq('user_id', user?.id)
         .order('name');
 
-      // Don't throw error for trips - they might not exist yet
       if (tripsError) {
         console.log('No trips found or error fetching trips:', tripsError);
       }
 
-      setTransactions((transactionsData || []) as Transaction[]);
+      // NEW: Fetch family members
+      const { data: familyMembersData, error: familyMembersError } = await supabase
+        .from('family_members')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('name');
+
+      if (familyMembersError) {
+        console.log('No family members found or error fetching family members:', familyMembersError);
+      }
+
+      setTransactions((transactionsData || []) as unknown as Transaction[]);
       setCategories((categoriesData || []) as Category[]);
       setAccounts((accountsData || []) as Account[]);
-      setTrips((tripsData || []) as Trip[]); // SET trips data
+      setTrips((tripsData || []) as Trip[]);
+      setFamilyMembers((familyMembersData || []) as unknown as FamilyMember[]);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -124,10 +154,11 @@ export function useTransactions() {
     }
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'category' | 'account' | 'trip'> & { 
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'category' | 'account' | 'trip' | 'family_member'> & { 
     category_id?: string; 
     account_id: string;
-    trip_id?: string | null; // ADD trip_id support
+    trip_id?: string | null;
+    family_member_id?: string | null; // NEW: Family member support
   }) => {
     try {
       const { error } = await supabase
@@ -243,7 +274,6 @@ export function useTransactions() {
     return months;
   };
 
-  // ADD: New trip-related helper functions
   const getExpensesByTrip = () => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -252,7 +282,7 @@ export function useTransactions() {
     const currentMonthExpenses = transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return t.transaction_type === 'expense' &&
-             t.trip_id && // Only include transactions with trips
+             t.trip_id &&
              transactionDate.getMonth() === currentMonth && 
              transactionDate.getFullYear() === currentYear;
     });
@@ -263,7 +293,7 @@ export function useTransactions() {
       if (!acc[tripName]) {
         acc[tripName] = { amount: 0 };
       }
-      acc[tripName].amount += Math.abs(transaction.amount_gbp); // Show as positive
+      acc[tripName].amount += Math.abs(transaction.amount_gbp);
       return acc;
     }, {} as Record<string, { amount: number }>);
 
@@ -279,17 +309,64 @@ export function useTransactions() {
     }));
   };
 
+  // NEW: Get family balance calculations
+  const getFamilyBalances = () => {
+    const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+    
+    if (!familyTransferCategory) return [];
+
+    const familyTransactions = transactions.filter(t => 
+      t.category?.id === familyTransferCategory.id && t.family_member_id
+    );
+
+    const balances = familyMembers.map(member => {
+      const memberTransactions = familyTransactions.filter(t => 
+        t.family_member_id === member.id
+      );
+
+      const totalReceived = memberTransactions
+        .filter(t => t.amount_gbp > 0) // Money received from family
+        .reduce((sum, t) => sum + t.amount_gbp, 0);
+
+      const totalGiven = memberTransactions
+        .filter(t => t.amount_gbp < 0) // Money given back to family
+        .reduce((sum, t) => sum + Math.abs(t.amount_gbp), 0);
+
+      const balance = totalReceived - totalGiven; // Positive = you owe them, Negative = they owe you
+
+      const lastTransaction = memberTransactions.length > 0 
+        ? memberTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+        : null;
+
+      return {
+        id: member.id,
+        name: member.name,
+        color: member.color,
+        status: member.status,
+        balance,
+        totalReceived,
+        totalGiven,
+        lastTransaction: lastTransaction?.date || null,
+        transactionCount: memberTransactions.length
+      };
+    });
+
+    return balances;
+  };
+
   return {
     transactions,
     categories,
     accounts,
-    trips, // ADD trips to return object
+    trips,
+    familyMembers, // NEW: Return family members
     loading,
     addTransaction,
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,
-    getExpensesByTrip, // ADD trip expenses function
+    getExpensesByTrip,
+    getFamilyBalances, // NEW: Return family balance calculations
     refetch: fetchData
   };
 }

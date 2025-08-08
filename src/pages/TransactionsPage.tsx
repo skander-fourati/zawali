@@ -22,6 +22,7 @@ const TransactionsPage: React.FC = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]); // NEW: Family members
   
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState('date');
@@ -30,6 +31,8 @@ const TransactionsPage: React.FC = () => {
   // Filter states
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
+  const [tripFilter, setTripFilter] = useState('all'); // NEW: Trip filter
+  const [familyMemberFilter, setFamilyMemberFilter] = useState('all'); // NEW: Family member filter
   const [showFilters, setShowFilters] = useState(false);
 
   // Modal states for edit/add/delete
@@ -49,11 +52,17 @@ const TransactionsPage: React.FC = () => {
     setLoading(true);
     
     try {
-      // Fetch transactions (keeping your original pattern with @ts-ignore)
+      // Fetch transactions with related data
       // @ts-ignore
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
-        .select('*')
+        .select(`
+          *,
+          category:categories(*),
+          account:accounts(*),
+          trip:trips(*),
+          family_member:family_members(*)
+        `)
         .eq('user_id', user!.id)
         .order('date', { ascending: false });
 
@@ -73,10 +82,18 @@ const TransactionsPage: React.FC = () => {
         .eq('user_id', user!.id)
         .order('name');
 
-      // Fetch trips (might not exist yet)
+      // Fetch trips
       // @ts-ignore
       const { data: tripsData, error: tripsError } = await supabase
         .from('trips')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('name');
+
+      // NEW: Fetch family members
+      // @ts-ignore
+      const { data: familyMembersData, error: familyMembersError } = await supabase
+        .from('family_members')
         .select('*')
         .eq('user_id', user!.id)
         .order('name');
@@ -95,7 +112,8 @@ const TransactionsPage: React.FC = () => {
       setTransactions(transactionsData || []);
       setCategories(categoriesData || []);
       setAccounts(accountsData || []);
-      setTrips(tripsData || []); // It's OK if trips don't exist yet
+      setTrips(tripsData || []);
+      setFamilyMembers(familyMembersData || []); // NEW: Set family members
 
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -170,11 +188,13 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
-  // NEW: Clear all filters function
+  // UPDATED: Clear all filters function
   const clearFilters = () => {
     setSearchQuery('');
     setCategoryFilter('all');
     setAccountFilter('all');
+    setTripFilter('all');
+    setFamilyMemberFilter('all');
   };
 
   const filteredAndSortedTransactions = useMemo(() => {
@@ -195,6 +215,20 @@ const TransactionsPage: React.FC = () => {
     // Account filter  
     if (accountFilter && accountFilter !== 'all') {
       filtered = filtered.filter((t: any) => t.account_id === accountFilter);
+    }
+
+    // NEW: Trip filter
+    if (tripFilter && tripFilter !== 'all') {
+      filtered = filtered.filter((t: any) => t.trip_id === tripFilter);
+    }
+
+    // NEW: Family member filter (auto-filters to Family Transfer category)
+    if (familyMemberFilter && familyMemberFilter !== 'all') {
+      const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+      filtered = filtered.filter((t: any) => 
+        t.family_member_id === familyMemberFilter && 
+        t.category_id === familyTransferCategory?.id
+      );
     }
 
     // Sort
@@ -224,7 +258,7 @@ const TransactionsPage: React.FC = () => {
     });
 
     return filtered;
-  }, [transactions, searchQuery, categoryFilter, accountFilter, sortField, sortDirection]);
+  }, [transactions, searchQuery, categoryFilter, accountFilter, tripFilter, familyMemberFilter, sortField, sortDirection, categories]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -249,6 +283,13 @@ const TransactionsPage: React.FC = () => {
     if (!tripId) return null;
     const trip = trips.find((t: any) => t.id === tripId);
     return trip?.name || null;
+  };
+
+  // NEW: Get family member name
+  const getFamilyMemberName = (familyMemberId: string | null) => {
+    if (!familyMemberId) return null;
+    const member = familyMembers.find((m: any) => m.id === familyMemberId);
+    return member?.name || null;
   };
 
   if (loading) {
@@ -305,55 +346,119 @@ const TransactionsPage: React.FC = () => {
             >
               <Filter className="h-4 w-4" />
               Filters
-              {/* NEW: Show active filter count */}
-              {(categoryFilter !== 'all' || accountFilter !== 'all') && (
+              {/* UPDATED: Show active filter count including new filters */}
+              {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
                 <Badge variant="secondary" className="ml-2">
-                  {[categoryFilter !== 'all', accountFilter !== 'all'].filter(Boolean).length}
+                  {[categoryFilter !== 'all', accountFilter !== 'all', tripFilter !== 'all', familyMemberFilter !== 'all'].filter(Boolean).length}
                 </Badge>
               )}
             </Button>
           </div>
 
           {showFilters && (
-            <div className="flex gap-4 pt-4 border-t mt-4">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category: any) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4 border-t mt-4">
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Select value={accountFilter} onValueChange={setAccountFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Accounts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Accounts</SelectItem>
-                  {accounts.map((account: any) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select value={accountFilter} onValueChange={setAccountFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Accounts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Accounts</SelectItem>
+                    {accounts.map((account: any) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              {/* NEW: Clear button with icon */}
-              <Button 
-                variant="outline" 
-                onClick={clearFilters}
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </Button>
-            </div>
+                {/* NEW: Trip Filter */}
+                <Select value={tripFilter} onValueChange={setTripFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Trips" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Trips</SelectItem>
+                    {trips.map((trip: any) => (
+                      <SelectItem key={trip.id} value={trip.id}>
+                        {trip.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* NEW: Family Member Filter */}
+                <Select value={familyMemberFilter} onValueChange={setFamilyMemberFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Family" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Family Members</SelectItem>
+                    {familyMembers.map((member: any) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full border"
+                            style={{ backgroundColor: member.color }}
+                          />
+                          {member.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* UPDATED: Clear button positioned last */}
+                <Button 
+                  variant="outline" 
+                  onClick={clearFilters}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              </div>
+
+              {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  {categoryFilter !== 'all' && (
+                    <Badge variant="outline" className="text-xs">
+                      Category: {getCategoryName(categoryFilter)}
+                    </Badge>
+                  )}
+                  {accountFilter !== 'all' && (
+                    <Badge variant="outline" className="text-xs">
+                      Account: {getAccountName(accountFilter)}
+                    </Badge>
+                  )}
+                  {tripFilter !== 'all' && (
+                    <Badge variant="outline" className="text-xs">
+                      Trip: {getTripName(tripFilter)}
+                    </Badge>
+                  )}
+                  {familyMemberFilter !== 'all' && (
+                    <Badge variant="outline" className="text-xs">
+                      Family: {getFamilyMemberName(familyMemberFilter)}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -398,6 +503,7 @@ const TransactionsPage: React.FC = () => {
                     <th className="text-left p-4 font-semibold">Category</th>
                     <th className="text-left p-4 font-semibold">Account</th>
                     <th className="text-left p-4 font-semibold">Trip</th>
+                    <th className="text-left p-4 font-semibold">Family</th> {/* NEW: Family column */}
                     <th className="text-left p-4 font-semibold">Encord</th>
                     <th 
                       className="text-right p-4 font-semibold cursor-pointer hover:bg-gray-100"
@@ -431,6 +537,20 @@ const TransactionsPage: React.FC = () => {
                       <td className="p-4 text-sm">
                         {getTripName(transaction.trip_id) ? (
                           <Badge variant="outline">{getTripName(transaction.trip_id)}</Badge>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      {/* NEW: Family Member column */}
+                      <td className="p-4 text-sm">
+                        {getFamilyMemberName(transaction.family_member_id) ? (
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full border"
+                              style={{ backgroundColor: transaction.family_member?.color || '#gray' }}
+                            />
+                            <span className="text-xs">{getFamilyMemberName(transaction.family_member_id)}</span>
+                          </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
