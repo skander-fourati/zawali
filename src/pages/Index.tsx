@@ -5,6 +5,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { FamilyBalances } from "@/components/dashboard/FamilyBalances";
+import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
 import { ExpensesByCategory } from "@/components/charts/ExpensesByCategory";
 import { ExpensesOverTime } from "@/components/charts/ExpensesOverTime";
 import { IncomeOverTime } from "@/components/charts/IncomeOverTime";
@@ -22,27 +23,23 @@ const Index = () => {
   const { toast } = useToast();
   const {
     transactions,
+    categories,
+    accounts,
+    trips,
     loading: transactionsLoading,
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,
-    getExpensesByTrip, // NEW: Get this from the hook now
-    trips, // NEW: Get trips from hook
+    getExpensesByTrip,
+    getFamilyBalances, // NEW: Get family balances calculator
     refetch
   } = useTransactions();
 
-  const [familyBalances, setFamilyBalances] = useState<Array<{
-    id: string;
-    name: string;
-    totalSent: number;
-    lastTransaction: string;
-    status: 'active' | 'inactive';
-  }>>([]);
-  
-  // ADD this line after the familyBalances state
-const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
+  // NEW: Transaction modal state
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
-  // REMOVED: No need for separate trips state - it's in the hook now
+  const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -53,63 +50,36 @@ const [categoryColors, setCategoryColors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (user) {
-      fetchFamilyBalances();
-      fetchCategoryColors(); // ADD this line
-      // REMOVED: fetchTrips() - now handled by useTransactions hook
+      fetchCategoryColors();
     }
   }, [user]);
 
-  
-
-  const fetchFamilyBalances = async () => {
+  const fetchCategoryColors = async () => {
+    if (!user) return;
+    
     try {
-      const { data, error } = await supabase
-        .from('family_balances')
-        .select('*')
-        .order('name');
+      const { data: categories, error } = await supabase
+        .from('categories')
+        .select('name, color')
+        .eq('user_id', user.id);
 
-      if (error) throw error;
-      
-      setFamilyBalances(data?.map(item => ({
-        id: item.id,
-        name: item.name,
-        totalSent: Number(item.total_sent),
-        lastTransaction: item.last_transaction || '2024-01-01',
-        status: item.status as 'active' | 'inactive'
-      })) || []);
+      if (error) {
+        console.error('Error fetching category colors:', error);
+        return;
+      }
+
+      const colorMap = categories?.reduce((acc, category) => {
+        if (category.color) {
+          acc[category.name] = category.color;
+        }
+        return acc;
+      }, {} as Record<string, string>) || {};
+
+      setCategoryColors(colorMap);
     } catch (error) {
-      console.error('Error fetching family balances:', error);
+      console.error('Error fetching category colors:', error);
     }
   };
-
-  // ADD this entire function after fetchFamilyBalances()
-const fetchCategoryColors = async () => {
-  if (!user) return;
-  
-  try {
-    const { data: categories, error } = await supabase
-      .from('categories')
-      .select('name, color')
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error fetching category colors:', error);
-      return;
-    }
-
-    const colorMap = categories?.reduce((acc, category) => {
-      if (category.color) {
-        acc[category.name] = category.color;
-      }
-      return acc;
-    }, {} as Record<string, string>) || {};
-
-    setCategoryColors(colorMap);
-  } catch (error) {
-    console.error('Error fetching category colors:', error);
-  }
-};
-  // REMOVED: fetchTrips function - now handled by useTransactions hook
 
   const handleTransactionsUploaded = () => {
     setRefreshKey(prev => prev + 1);
@@ -118,7 +88,6 @@ const fetchCategoryColors = async () => {
       refetch();
     }
     
-    fetchFamilyBalances();
     fetchCategoryColors();
     
     toast({
@@ -127,39 +96,18 @@ const fetchCategoryColors = async () => {
     });
   };
 
-  const handleAddBalanceClick = async () => {
-    const name = prompt("Enter family member name:");
-    if (!name) return;
+  // NEW: Handle opening transaction modal
+  const handleAddTransactionClick = () => {
+    setEditingTransaction(null);
+    setIsTransactionModalOpen(true);
+  };
 
-    const amount = prompt("Enter initial amount sent (GBP):");
-    if (!amount || isNaN(Number(amount))) return;
-
-    try {
-      const { error } = await supabase
-        .from('family_balances')
-        .insert([{
-          user_id: user?.id,
-          name,
-          total_sent: Number(amount),
-          last_transaction: new Date().toISOString().split('T')[0],
-          status: 'active'
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Added ${name} with £${amount} sent.`,
-      });
-      
-      fetchFamilyBalances();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add family balance. Please try again.",
-        variant: "destructive",
-      });
-    }
+  // NEW: Handle transaction saved
+  const handleTransactionSaved = () => {
+    setIsTransactionModalOpen(false);
+    setEditingTransaction(null);
+    refetch(); // Refresh all data
+    setRefreshKey(prev => prev + 1);
   };
 
   // IMPROVED DATA PROCESSING - Fixed to work with existing types
@@ -365,12 +313,29 @@ const fetchCategoryColors = async () => {
   const expensesByCategory = getExpensesByCategory();
   const last12MonthsData = getLast12MonthsData();
 
+  // NEW: Get family balances and recent family transactions
+  const familyBalances = getFamilyBalances();
+  const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+  const recentFamilyTransactions = transactions
+    .filter(t => t.category?.id === familyTransferCategory?.id && t.family_member_id)
+    .slice(0, 5)
+    .map(t => ({
+      id: t.id,
+      date: t.date,
+      description: t.description,
+      amount_gbp: t.amount_gbp,
+      family_member: {
+        name: t.family_member?.name || 'Unknown',
+        color: t.family_member?.color || '#gray'
+      }
+    }));
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6 max-w-7xl">
           <DashboardHeader 
-            onAddBalanceClick={handleAddBalanceClick}
+            onAddTransactionClick={handleAddTransactionClick} // UPDATED: Changed prop name
             onTransactionsUploaded={handleTransactionsUploaded}
           />
           
@@ -394,51 +359,64 @@ const fetchCategoryColors = async () => {
                 type: t.transaction_type as 'income' | 'expense'
               }))} 
             />
+            {/* UPDATED: FamilyBalances with real data */}
             <FamilyBalances 
               balances={familyBalances}
-              onAddBalance={handleAddBalanceClick}
+              recentTransactions={recentFamilyTransactions}
+              onAddTransaction={handleAddTransactionClick} // UPDATED: Changed prop name
             />
           </div>
 
           <div className="space-y-8">
-  {/* Full-width Expenses Over Time chart */}
-  <div className="w-full">
-    <ExpensesOverTime 
-      key={`expenses-time-${refreshKey}`}
-      data={getImprovedExpensesOverTime()}
-      categoryColors={categoryColors} 
-    />
-  </div>
+            {/* Full-width Expenses Over Time chart */}
+            <div className="w-full">
+              <ExpensesOverTime 
+                key={`expenses-time-${refreshKey}`}
+                data={getImprovedExpensesOverTime()}
+                categoryColors={categoryColors} 
+              />
+            </div>
 
-  {/* Rest of the charts in 2-column grid */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <ExpensesByCategory 
-      key={`expenses-category-${refreshKey}`}
-      data={getImprovedExpensesByCategory()} 
-    />
-    <IncomeOverTime 
-      key={`income-time-${refreshKey}`}
-      data={last12MonthsData.map(m => ({ 
-        month: m.month, 
-        amount: m.income
-      }))} 
-    />
-    <SavingsOverTime 
-      key={`savings-time-${refreshKey}`}
-      data={getImprovedSavingsOverTime()}
-    />        
-    <InvestmentsOverTime 
-      key={`investments-time-${refreshKey}`}
-      data={getInvestmentsOverTime()}
-    />
-    <ExpensesByTrip 
-      key={`expenses-trip-${refreshKey}`}
-      data={getImprovedExpensesByTrip()}
-    />
-    {/* Add a placeholder div if you want even number of items in the grid */}
-    <div></div>
-  </div>
-</div>
+            {/* Rest of the charts in 2-column grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <ExpensesByCategory 
+                key={`expenses-category-${refreshKey}`}
+                data={getImprovedExpensesByCategory()} 
+              />
+              <IncomeOverTime 
+                key={`income-time-${refreshKey}`}
+                data={last12MonthsData.map(m => ({ 
+                  month: m.month, 
+                  amount: m.income
+                }))} 
+              />
+              <SavingsOverTime 
+                key={`savings-time-${refreshKey}`}
+                data={getImprovedSavingsOverTime()}
+              />        
+              <InvestmentsOverTime 
+                key={`investments-time-${refreshKey}`}
+                data={getInvestmentsOverTime()}
+              />
+              <ExpensesByTrip 
+                key={`expenses-trip-${refreshKey}`}
+                data={getImprovedExpensesByTrip()}
+              />
+              {/* Add a placeholder div if you want even number of items in the grid */}
+              <div></div>
+            </div>
+          </div>
+
+          {/* NEW: Transaction Modal */}
+          <AddEditTransactionModal
+            isOpen={isTransactionModalOpen}
+            onClose={() => setIsTransactionModalOpen(false)}
+            onSave={handleTransactionSaved}
+            transaction={editingTransaction}
+            categories={categories}
+            accounts={accounts}
+            trips={trips}
+          />
         </div>
       </div>
     </ProtectedRoute>
