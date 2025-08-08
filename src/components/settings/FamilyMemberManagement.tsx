@@ -6,94 +6,87 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Tag, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
 
 // Types
-interface Category {
+interface FamilyMember {
   id: string;
   name: string;
   color: string | null;
-  category_type: string;
+  status: 'active' | 'settled' | 'archived';
   transaction_count?: number;
 }
 
-interface CategoryFormData {
+interface FamilyMemberFormData {
   name: string;
   color: string;
 }
 
-const CategoryManagement: React.FC = () => {
+const FamilyMemberManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Category state
-  const [categories, setCategories] = useState<Category[]>([]);
+  // Family member state
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState<FamilyMember | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [reassignToCategoryId, setReassignToCategoryId] = useState<string | null>(null);
-
-  // Protected categories that cannot be edited or deleted
-  const protectedCategories = ['Income', 'Investment', 'Family Transfer'];
-  
-  const isProtectedCategory = (categoryName: string) => {
-    return protectedCategories.includes(categoryName);
-  };
+  const [reassignToMemberId, setReassignToMemberId] = useState<string | null>(null);
 
   // Forms
-  const addForm = useForm<CategoryFormData>({
+  const addForm = useForm<FamilyMemberFormData>({
     defaultValues: { name: '', color: '#3b82f6' }
   });
   
-  const editForm = useForm<CategoryFormData>({
+  const editForm = useForm<FamilyMemberFormData>({
     defaultValues: { name: '', color: '#3b82f6' }
   });
 
-  // Fetch categories with transaction counts
-  const fetchCategories = async () => {
+  // Fetch family members with transaction counts
+  const fetchFamilyMembers = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      // Get categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
+      // Get family members
+      const { data: familyMembersData, error: familyMembersError } = await supabase
+        .from('family_members')
         .select('*')
         .eq('user_id', user.id)
         .order('name');
 
-      if (categoriesError) throw categoriesError;
+      if (familyMembersError) throw familyMembersError;
 
-      // Get transaction counts for each category
-      const categoriesWithCounts = await Promise.all(
-        (categoriesData || []).map(async (category) => {
+      // Get transaction counts for each family member
+      const membersWithCounts = await Promise.all(
+        (familyMembersData || []).map(async (member) => {
           const { count, error: countError } = await supabase
             .from('transactions')
             .select('id', { count: 'exact' })
-            .eq('category_id', category.id);
+            .eq('family_member_id', member.id);
 
           if (countError) {
             console.error('Error counting transactions:', countError);
-            return { ...category, transaction_count: 0 };
+            return { ...member, transaction_count: 0 };
           }
 
-          return { ...category, transaction_count: count || 0 };
+          return { ...member, transaction_count: count || 0 };
         })
       );
 
-      setCategories(categoriesWithCounts);
+      setFamilyMembers(membersWithCounts as unknown as FamilyMember[]);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Error fetching family members:', error);
       toast({
         title: "Error",
-        description: "Failed to load categories",
+        description: "Failed to load family members",
         variant: "destructive",
       });
     } finally {
@@ -102,165 +95,174 @@ const CategoryManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchCategories();
+    fetchFamilyMembers();
   }, [user]);
 
-  // Add new category
-  const onAddCategory = async (data: CategoryFormData) => {
+  // Add new family member
+  const onAddFamilyMember = async (data: FamilyMemberFormData) => {
     if (!user) return;
 
     try {
       // Check for duplicate names
-      const existing = categories.find(c => c.name.toLowerCase() === data.name.toLowerCase());
+      const existing = familyMembers.find(m => m.name.toLowerCase() === data.name.toLowerCase());
       if (existing) {
-        addForm.setError('name', { message: 'A category with this name already exists' });
+        addForm.setError('name', { message: 'A family member with this name already exists' });
         return;
       }
 
       const { error } = await supabase
-        .from('categories')
+        .from('family_members')
         .insert([{
           user_id: user.id,
           name: data.name,
           color: data.color,
-          category_type: 'expense' // Default type, though we're not using this concept
+          status: 'active' // Default to active
         }]);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: `Category "${data.name}" created successfully`,
+        description: `Family member "${data.name}" added successfully`,
       });
 
       setIsAddDialogOpen(false);
       addForm.reset();
-      fetchCategories();
+      fetchFamilyMembers();
     } catch (error) {
-      console.error('Error adding category:', error);
+      console.error('Error adding family member:', error);
       toast({
         title: "Error",
-        description: "Failed to create category",
+        description: "Failed to add family member",
         variant: "destructive",
       });
     }
   };
 
-  // Edit category
-  const onEditCategory = async (data: CategoryFormData) => {
-    if (!editingCategory || !user) return;
+  // Edit family member
+  const onEditFamilyMember = async (data: FamilyMemberFormData) => {
+    if (!editingMember || !user) return;
 
     try {
-      // Check for duplicate names (excluding current category)
-      const existing = categories.find(c => 
-        c.name.toLowerCase() === data.name.toLowerCase() && c.id !== editingCategory.id
+      // Check for duplicate names (excluding current member)
+      const existing = familyMembers.find(m => 
+        m.name.toLowerCase() === data.name.toLowerCase() && m.id !== editingMember.id
       );
       if (existing) {
-        editForm.setError('name', { message: 'A category with this name already exists' });
+        editForm.setError('name', { message: 'A family member with this name already exists' });
         return;
       }
 
       const { error } = await supabase
-        .from('categories')
+        .from('family_members')
         .update({
           name: data.name,
           color: data.color,
         })
-        .eq('id', editingCategory.id);
+        .eq('id', editingMember.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: `Category "${data.name}" updated successfully`,
+        description: `Family member "${data.name}" updated successfully`,
       });
 
       setIsEditDialogOpen(false);
-      setEditingCategory(null);
+      setEditingMember(null);
       editForm.reset();
-      fetchCategories();
+      fetchFamilyMembers();
     } catch (error) {
-      console.error('Error editing category:', error);
+      console.error('Error editing family member:', error);
       toast({
         title: "Error",
-        description: "Failed to update category",
+        description: "Failed to update family member",
         variant: "destructive",
       });
     }
   };
 
-  // Delete category
-  const onDeleteCategory = async () => {
-    if (!deletingCategory) return;
+  // Delete family member
+  const onDeleteFamilyMember = async () => {
+    if (!deletingMember) return;
 
     try {
       // If reassigning, update all transactions first
-      if (reassignToCategoryId && reassignToCategoryId !== 'null') {
+      if (reassignToMemberId && reassignToMemberId !== 'null') {
         const { error: updateError } = await supabase
           .from('transactions')
-          .update({ category_id: reassignToCategoryId })
-          .eq('category_id', deletingCategory.id);
+          .update({ family_member_id: reassignToMemberId })
+          .eq('family_member_id', deletingMember.id);
 
         if (updateError) throw updateError;
       } else {
-        // Set transactions to null (uncategorized)
+        // Set transactions to null (no family member)
         const { error: updateError } = await supabase
           .from('transactions')
-          .update({ category_id: null })
-          .eq('category_id', deletingCategory.id);
+          .update({ family_member_id: null })
+          .eq('family_member_id', deletingMember.id);
 
         if (updateError) throw updateError;
       }
 
-      // Now delete the category
+      // Now delete the family member
       const { error } = await supabase
-        .from('categories')
+        .from('family_members')
         .delete()
-        .eq('id', deletingCategory.id);
+        .eq('id', deletingMember.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: `Category "${deletingCategory.name}" deleted successfully`,
+        description: `Family member "${deletingMember.name}" deleted successfully`,
       });
 
       setIsDeleteDialogOpen(false);
-      setDeletingCategory(null);
-      setReassignToCategoryId(null);
-      fetchCategories();
+      setDeletingMember(null);
+      setReassignToMemberId(null);
+      fetchFamilyMembers();
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error('Error deleting family member:', error);
       toast({
         title: "Error",
-        description: "Failed to delete category",
+        description: "Failed to delete family member",
         variant: "destructive",
       });
     }
   };
 
   // Open edit dialog
-  const openEditDialog = (category: Category) => {
-    setEditingCategory(category);
+  const openEditDialog = (member: FamilyMember) => {
+    setEditingMember(member);
     editForm.reset({
-      name: category.name,
-      color: category.color || '#3b82f6'
+      name: member.name,
+      color: member.color || '#3b82f6'
     });
     setIsEditDialogOpen(true);
   };
 
   // Open delete dialog
-  const openDeleteDialog = (category: Category) => {
-    setDeletingCategory(category);
-    setReassignToCategoryId(null);
+  const openDeleteDialog = (member: FamilyMember) => {
+    setDeletingMember(member);
+    setReassignToMemberId(null);
     setIsDeleteDialogOpen(true);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'settled': return 'bg-blue-100 text-blue-800';
+      case 'archived': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-4">Loading categories...</p>
+        <p className="ml-4">Loading family members...</p>
       </div>
     );
   }
@@ -269,31 +271,31 @@ const CategoryManagement: React.FC = () => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2">
-          <Tag className="h-5 w-5" />
-          Transaction Categories ({categories.length})
+          <Users className="h-5 w-5" />
+          Family Members ({familyMembers.length})
         </CardTitle>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Add Category
+              Add Family Member
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
+              <DialogTitle>Add New Family Member</DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(onAddCategory)} className="space-y-4">
+              <form onSubmit={addForm.handleSubmit(onAddFamilyMember)} className="space-y-4">
                 <FormField
                   control={addForm.control}
                   name="name"
-                  rules={{ required: "Category name is required" }}
+                  rules={{ required: "Family member name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category Name</FormLabel>
+                      <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Groceries, Entertainment" {...field} />
+                        <Input placeholder="e.g., Dad, Mom, Sister" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -325,7 +327,7 @@ const CategoryManagement: React.FC = () => {
                             />
                             <div>
                               <p className="text-sm font-medium">Preview</p>
-                              <p className="text-xs text-muted-foreground">How your category will appear</p>
+                              <p className="text-xs text-muted-foreground">How your family member will appear</p>
                             </div>
                           </div>
                         </div>
@@ -334,8 +336,9 @@ const CategoryManagement: React.FC = () => {
                     </FormItem>
                   )}
                 />
+
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">Add Category</Button>
+                  <Button type="submit" className="flex-1">Add Family Member</Button>
                   <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                     Cancel
                   </Button>
@@ -346,32 +349,29 @@ const CategoryManagement: React.FC = () => {
         </Dialog>
       </CardHeader>
       <CardContent>
-        {categories.length === 0 ? (
+        {familyMembers.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <Tag className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <p>No categories found. Add your first category to get started!</p>
+            <Users className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <p>No family members found. Add your first family member to get started!</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
+            {familyMembers.map((member) => (
+              <div key={member.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
                 <div className="flex items-center gap-3">
                   <div 
                     className="w-6 h-6 rounded-full border-2 border-gray-200"
-                    style={{ backgroundColor: category.color || '#gray' }}
+                    style={{ backgroundColor: member.color || '#gray' }}
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{category.name}</span>
-                      {isProtectedCategory(category.name) && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Shield className="w-3 h-3 mr-1" />
-                          Protected
-                        </Badge>
-                      )}
+                      <span className="font-medium">{member.name}</span>
+                      <Badge variant="secondary" className={`text-xs ${getStatusColor(member.status)}`}>
+                        {member.status}
+                      </Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      Used in {category.transaction_count || 0} transactions
+                      Used in {member.transaction_count || 0} transactions
                     </span>
                   </div>
                 </div>
@@ -379,16 +379,14 @@ const CategoryManagement: React.FC = () => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => openEditDialog(category)}
-                    disabled={isProtectedCategory(category.name)}
+                    onClick={() => openEditDialog(member)}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => openDeleteDialog(category)}
-                    disabled={isProtectedCategory(category.name)}
+                    onClick={() => openDeleteDialog(member)}
                     className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -400,21 +398,21 @@ const CategoryManagement: React.FC = () => {
         )}
       </CardContent>
 
-      {/* Edit Category Dialog */}
+      {/* Edit Family Member Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
+            <DialogTitle>Edit Family Member</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditCategory)} className="space-y-4">
+            <form onSubmit={editForm.handleSubmit(onEditFamilyMember)} className="space-y-4">
               <FormField
                 control={editForm.control}
                 name="name"
-                rules={{ required: "Category name is required" }}
+                rules={{ required: "Family member name is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category Name</FormLabel>
+                    <FormLabel>Name</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -448,7 +446,7 @@ const CategoryManagement: React.FC = () => {
                           />
                           <div>
                             <p className="text-sm font-medium">Preview</p>
-                            <p className="text-xs text-muted-foreground">How your category will appear</p>
+                            <p className="text-xs text-muted-foreground">How your family member will appear</p>
                           </div>
                         </div>
                       </div>
@@ -458,7 +456,7 @@ const CategoryManagement: React.FC = () => {
                 )}
               />
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">Update Category</Button>
+                <Button type="submit" className="flex-1">Update Family Member</Button>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
@@ -472,32 +470,32 @@ const CategoryManagement: React.FC = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Category</DialogTitle>
+            <DialogTitle>Delete Family Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              Are you sure you want to delete the category <strong>"{deletingCategory?.name}"</strong>?
+              Are you sure you want to delete the family member <strong>"{deletingMember?.name}"</strong>?
             </p>
-            {deletingCategory && deletingCategory.transaction_count > 0 && (
+            {deletingMember && deletingMember.transaction_count > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800">
-                  <strong>Warning:</strong> This category is used by {deletingCategory.transaction_count} transactions.
+                  <strong>Warning:</strong> This family member is used by {deletingMember.transaction_count} transactions.
                 </p>
                 <p className="text-sm text-yellow-700 mt-2">
-                  You can either reassign these transactions to another category or leave them uncategorized.
+                  You can either reassign these transactions to another family member or remove the family member association.
                 </p>
                 <div className="mt-3">
-                  <Select value={reassignToCategoryId || 'null'} onValueChange={setReassignToCategoryId}>
+                  <Select value={reassignToMemberId || 'null'} onValueChange={setReassignToMemberId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="null">Leave uncategorized</SelectItem>
-                      {categories
-                        .filter(c => c.id !== deletingCategory.id)
-                        .map(category => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
+                      <SelectItem value="null">Remove family member association</SelectItem>
+                      {familyMembers
+                        .filter(m => m.id !== deletingMember.id)
+                        .map(member => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.name}
                           </SelectItem>
                         ))
                       }
@@ -509,10 +507,10 @@ const CategoryManagement: React.FC = () => {
             <div className="flex gap-2">
               <Button 
                 variant="destructive" 
-                onClick={onDeleteCategory}
+                onClick={onDeleteFamilyMember}
                 className="flex-1"
               >
-                Delete Category
+                Delete Family Member
               </Button>
               <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                 Cancel
@@ -525,4 +523,4 @@ const CategoryManagement: React.FC = () => {
   );
 };
 
-export default CategoryManagement;
+export default FamilyMemberManagement;
