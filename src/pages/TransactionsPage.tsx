@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,23 +6,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useTransactions } from "@/hooks/useTransactions"; // Use the hook!
 import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
 
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
 
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [trips, setTrips] = useState<any[]>([]);
-  const [familyMembers, setFamilyMembers] = useState<any[]>([]); // NEW: Family members
+  // 🎉 Replace all the duplicated state with the useTransactions hook
+  const {
+    transactions,
+    categories,
+    accounts,
+    trips,
+    familyMembers,
+    loading,
+    refetch
+  } = useTransactions();
   
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState('date');
@@ -31,8 +34,8 @@ const TransactionsPage: React.FC = () => {
   // Filter states
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
-  const [tripFilter, setTripFilter] = useState('all'); // NEW: Trip filter
-  const [familyMemberFilter, setFamilyMemberFilter] = useState('all'); // NEW: Family member filter
+  const [tripFilter, setTripFilter] = useState('all');
+  const [familyMemberFilter, setFamilyMemberFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
   // Modal states for edit/add/delete
@@ -42,107 +45,23 @@ const TransactionsPage: React.FC = () => {
 
   const ITEMS_PER_PAGE = 50;
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user]);
+  // 🗑️ Remove the useEffect and fetchData - the hook handles this!
 
-  const fetchData = async () => {
-    setLoading(true);
-    
-    try {
-      // Fetch transactions with related data
-      // @ts-ignore
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          category:categories(*),
-          account:accounts(*),
-          trip:trips(*),
-          family_member:family_members(*)
-        `)
-        .eq('user_id', user!.id)
-        .order('date', { ascending: false });
-
-      // Fetch categories
-      // @ts-ignore
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('name');
-
-      // Fetch accounts
-      // @ts-ignore
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('name');
-
-      // Fetch trips
-      // @ts-ignore
-      const { data: tripsData, error: tripsError } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('name');
-
-      // NEW: Fetch family members
-      // @ts-ignore
-      const { data: familyMembersData, error: familyMembersError } = await supabase
-        .from('family_members')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('name');
-
-      // Handle errors
-      if (transactionsError) {
-        console.error('Transactions error:', transactionsError);
-        toast({
-          title: "Database Error",
-          description: `Transactions: ${transactionsError.message}`,
-          variant: "destructive",
-        });
-      }
-
-      // Set data (use empty arrays if errors)
-      setTransactions(transactionsData || []);
-      setCategories(categoriesData || []);
-      setAccounts(accountsData || []);
-      setTrips(tripsData || []);
-      setFamilyMembers(familyMembersData || []); // NEW: Set family members
-
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load data. Check browser console for details.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // NEW: Handle edit transaction
+  // Handle edit transaction
   const handleEdit = (transaction: any) => {
     setEditingTransaction(transaction);
   };
 
-  // UPDATED: Handle delete with confirmation modal
+  // Handle delete with confirmation modal
   const handleDelete = (transaction: any) => {
     setDeletingTransaction(transaction);
   };
 
-  // NEW: Confirm delete
+  // Confirm delete - keep this logic but use refetch instead of fetchData
   const confirmDelete = async () => {
     if (!deletingTransaction) return;
 
     try {
-      // @ts-ignore
       const { error } = await supabase
         .from('transactions')
         .delete()
@@ -155,7 +74,7 @@ const TransactionsPage: React.FC = () => {
         description: "Transaction deleted.",
       });
 
-      fetchData(); // Refresh data
+      refetch(); // 🎉 Use the hook's refetch instead of fetchData
       setDeletingTransaction(null);
     } catch (error) {
       console.error('Delete error:', error);
@@ -167,14 +86,14 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
-  // NEW: Handle add transaction
+  // Handle add transaction
   const handleAddTransaction = () => {
     setIsAddModalOpen(true);
   };
 
-  // NEW: Handle modal save (refresh data)
+  // Handle modal save - use refetch instead of fetchData
   const handleModalSave = () => {
-    fetchData(); // Refresh data
+    refetch(); // 🎉 Use the hook's refetch instead of fetchData
     setIsAddModalOpen(false);
     setEditingTransaction(null);
   };
@@ -188,7 +107,7 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
-  // UPDATED: Clear all filters function
+  // Clear all filters function
   const clearFilters = () => {
     setSearchQuery('');
     setCategoryFilter('all');
@@ -217,12 +136,12 @@ const TransactionsPage: React.FC = () => {
       filtered = filtered.filter((t: any) => t.account_id === accountFilter);
     }
 
-    // NEW: Trip filter
+    // Trip filter
     if (tripFilter && tripFilter !== 'all') {
       filtered = filtered.filter((t: any) => t.trip_id === tripFilter);
     }
 
-    // NEW: Family member filter (auto-filters to Family Transfer category)
+    // Family member filter (auto-filters to Family Transfer category)
     if (familyMemberFilter && familyMemberFilter !== 'all') {
       const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
       filtered = filtered.filter((t: any) => 
@@ -285,7 +204,7 @@ const TransactionsPage: React.FC = () => {
     return trip?.name || null;
   };
 
-  // NEW: Get family member name
+  // Get family member name
   const getFamilyMemberName = (familyMemberId: string | null) => {
     if (!familyMemberId) return null;
     const member = familyMembers.find((m: any) => m.id === familyMemberId);
@@ -316,7 +235,6 @@ const TransactionsPage: React.FC = () => {
           </Button>
           <h1 className="text-3xl font-bold">All Transactions</h1>
         </div>
-        {/* UPDATED: Add Transaction button now works */}
         <Button 
           onClick={handleAddTransaction}
           className="flex items-center gap-2"
@@ -346,7 +264,6 @@ const TransactionsPage: React.FC = () => {
             >
               <Filter className="h-4 w-4" />
               Filters
-              {/* UPDATED: Show active filter count including new filters */}
               {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
                 <Badge variant="secondary" className="ml-2">
                   {[categoryFilter !== 'all', accountFilter !== 'all', tripFilter !== 'all', familyMemberFilter !== 'all'].filter(Boolean).length}
@@ -386,7 +303,6 @@ const TransactionsPage: React.FC = () => {
                   </SelectContent>
                 </Select>
 
-                {/* NEW: Trip Filter */}
                 <Select value={tripFilter} onValueChange={setTripFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Trips" />
@@ -401,7 +317,6 @@ const TransactionsPage: React.FC = () => {
                   </SelectContent>
                 </Select>
 
-                {/* NEW: Family Member Filter */}
                 <Select value={familyMemberFilter} onValueChange={setFamilyMemberFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Family" />
@@ -422,7 +337,6 @@ const TransactionsPage: React.FC = () => {
                   </SelectContent>
                 </Select>
 
-                {/* UPDATED: Clear button positioned last */}
                 <Button 
                   variant="outline" 
                   onClick={clearFilters}
@@ -463,7 +377,7 @@ const TransactionsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Results - UPDATED: Show filtered count */}
+      {/* Results */}
       <div className="mb-4 text-sm text-gray-600">
         Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
         {filteredAndSortedTransactions.length !== transactions.length && (
@@ -503,7 +417,7 @@ const TransactionsPage: React.FC = () => {
                     <th className="text-left p-4 font-semibold">Category</th>
                     <th className="text-left p-4 font-semibold">Account</th>
                     <th className="text-left p-4 font-semibold">Trip</th>
-                    <th className="text-left p-4 font-semibold">Family</th> {/* NEW: Family column */}
+                    <th className="text-left p-4 font-semibold">Family</th>
                     <th className="text-left p-4 font-semibold">Encord</th>
                     <th 
                       className="text-right p-4 font-semibold cursor-pointer hover:bg-gray-100"
@@ -541,7 +455,6 @@ const TransactionsPage: React.FC = () => {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      {/* NEW: Family Member column */}
                       <td className="p-4 text-sm">
                         {getFamilyMemberName(transaction.family_member_id) ? (
                           <div className="flex items-center gap-2">
@@ -574,7 +487,6 @@ const TransactionsPage: React.FC = () => {
                       </td>
                       <td className="p-4 text-center">
                         <div className="flex gap-2 justify-center">
-                          {/* UPDATED: Edit button now works */}
                           <Button 
                             size="sm" 
                             variant="ghost" 
@@ -583,7 +495,6 @@ const TransactionsPage: React.FC = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {/* UPDATED: Delete with confirmation modal */}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -624,7 +535,7 @@ const TransactionsPage: React.FC = () => {
         </div>
       )}
 
-      {/* NEW: Modals */}
+      {/* Modals */}
       <AddEditTransactionModal
         isOpen={isAddModalOpen || !!editingTransaction}
         onClose={() => {
