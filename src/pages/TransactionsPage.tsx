@@ -4,19 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X, Edit3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useTransactions } from "@/hooks/useTransactions"; // Use the hook!
+import { useTransactions } from "@/hooks/useTransactions";
 import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
+import { BulkEditTransactionModal } from "@/components/transactions/BulkEditTransactionModal";
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
 
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // 🎉 Replace all the duplicated state with the useTransactions hook
+  // Use the transactions hook
   const {
     transactions,
     categories,
@@ -24,13 +26,15 @@ const TransactionsPage: React.FC = () => {
     trips,
     familyMembers,
     loading,
-    refetch
+    refetch,
+    bulkUpdateTransactions
   } = useTransactions();
   
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState('desc');
   const [searchQuery, setSearchQuery] = useState('');
+  
   // Filter states
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
@@ -43,9 +47,46 @@ const TransactionsPage: React.FC = () => {
   const [deletingTransaction, setDeletingTransaction] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // Bulk selection states
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+
   const ITEMS_PER_PAGE = 50;
 
-  // 🗑️ Remove the useEffect and fetchData - the hook handles this!
+  // Handle individual transaction selection
+  const handleTransactionSelect = (transactionId: string, checked: boolean) => {
+    setSelectedTransactionIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(transactionId);
+      } else {
+        newSet.delete(transactionId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle select all on current page
+  const handleSelectAllPage = (checked: boolean) => {
+    setSelectedTransactionIds(prev => {
+      const newSet = new Set(prev);
+      
+      paginatedTransactions.forEach(transaction => {
+        if (checked) {
+          newSet.add(transaction.id);
+        } else {
+          newSet.delete(transaction.id);
+        }
+      });
+      
+      return newSet;
+    });
+  };
+
+  // Clear all selections
+  const clearAllSelections = () => {
+    setSelectedTransactionIds(new Set());
+  };
 
   // Handle edit transaction
   const handleEdit = (transaction: any) => {
@@ -57,7 +98,7 @@ const TransactionsPage: React.FC = () => {
     setDeletingTransaction(transaction);
   };
 
-  // Confirm delete - keep this logic but use refetch instead of fetchData
+  // Confirm delete
   const confirmDelete = async () => {
     if (!deletingTransaction) return;
 
@@ -74,8 +115,15 @@ const TransactionsPage: React.FC = () => {
         description: "Transaction deleted.",
       });
 
-      refetch(); // 🎉 Use the hook's refetch instead of fetchData
+      refetch();
       setDeletingTransaction(null);
+      
+      // Remove from selections if it was selected
+      setSelectedTransactionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(deletingTransaction.id);
+        return newSet;
+      });
     } catch (error) {
       console.error('Delete error:', error);
       toast({
@@ -91,11 +139,74 @@ const TransactionsPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  // Handle modal save - use refetch instead of fetchData
+  // Handle modal save
   const handleModalSave = () => {
-    refetch(); // 🎉 Use the hook's refetch instead of fetchData
+    refetch();
     setIsAddModalOpen(false);
     setEditingTransaction(null);
+  };
+
+  // Handle bulk edit
+  const handleBulkEdit = () => {
+    if (selectedTransactionIds.size === 0) {
+      toast({
+        title: "No transactions selected",
+        description: "Please select transactions to bulk edit.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsBulkEditModalOpen(true);
+  };
+
+  // Handle bulk edit save
+  const handleBulkEditSave = async (property: string, value: any, additionalData?: any) => {
+    if (selectedTransactionIds.size === 0) return;
+
+    try {
+      const selectedTransactionsData = transactions.filter(t => 
+        selectedTransactionIds.has(t.id)
+      );
+
+      const result = await bulkUpdateTransactions(
+        Array.from(selectedTransactionIds), 
+        property, 
+        value,
+        additionalData
+      );
+
+      if (result.successCount > 0) {
+        toast({
+          title: "Bulk Update Completed",
+          description: `Successfully updated ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
+        });
+      }
+
+      if (result.failures.length > 0) {
+        const failedDescriptions = result.failures.map(f => 
+          `${f.description} (${new Date(f.date).toLocaleDateString()})`
+        ).slice(0, 3); // Show only first 3
+
+        toast({
+          title: "Some updates failed",
+          description: `Failed to update: ${failedDescriptions.join(', ')}${result.failures.length > 3 ? ` and ${result.failures.length - 3} more...` : ''}`,
+          variant: "destructive",
+        });
+      }
+
+      // Refetch data and clear selections
+      await refetch();
+      clearAllSelections();
+      setIsBulkEditModalOpen(false);
+
+    } catch (error) {
+      console.error('Bulk edit error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to perform bulk edit.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSort = (field: string) => {
@@ -141,7 +252,7 @@ const TransactionsPage: React.FC = () => {
       filtered = filtered.filter((t: any) => t.trip_id === tripFilter);
     }
 
-    // Family member filter (auto-filters to Family Transfer category)
+    // Family member filter
     if (familyMemberFilter && familyMemberFilter !== 'all') {
       const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
       filtered = filtered.filter((t: any) => 
@@ -186,6 +297,13 @@ const TransactionsPage: React.FC = () => {
 
   const totalPages = Math.ceil(filteredAndSortedTransactions.length / ITEMS_PER_PAGE);
 
+  // Check if all transactions on current page are selected
+  const allPageSelected = paginatedTransactions.length > 0 && 
+    paginatedTransactions.every(t => selectedTransactionIds.has(t.id));
+  
+  // Check if some (but not all) transactions on current page are selected
+  const somePageSelected = paginatedTransactions.some(t => selectedTransactionIds.has(t.id)) && !allPageSelected;
+
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return 'Uncategorized';
     const category = categories.find((c: any) => c.id === categoryId);
@@ -204,7 +322,6 @@ const TransactionsPage: React.FC = () => {
     return trip?.name || null;
   };
 
-  // Get family member name
   const getFamilyMemberName = (familyMemberId: string | null) => {
     if (!familyMemberId) return null;
     const member = familyMembers.find((m: any) => m.id === familyMemberId);
@@ -235,13 +352,35 @@ const TransactionsPage: React.FC = () => {
           </Button>
           <h1 className="text-3xl font-bold">All Transactions</h1>
         </div>
-        <Button 
-          onClick={handleAddTransaction}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Transaction
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedTransactionIds.size > 0 && (
+            <>
+              <Button 
+                variant="outline"
+                onClick={handleBulkEdit}
+                className="flex items-center gap-2"
+              >
+                <Edit3 className="h-4 w-4" />
+                Bulk Edit ({selectedTransactionIds.size})
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={clearAllSelections}
+                className="flex items-center gap-2 text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+                Clear Selection
+              </Button>
+            </>
+          )}
+          <Button 
+            onClick={handleAddTransaction}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Transaction
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -378,10 +517,17 @@ const TransactionsPage: React.FC = () => {
       </Card>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-gray-600">
-        Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
-        {filteredAndSortedTransactions.length !== transactions.length && (
-          <span> (filtered from {transactions.length} total)</span>
+      <div className="mb-4 text-sm text-gray-600 flex items-center justify-between">
+        <div>
+          Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
+          {filteredAndSortedTransactions.length !== transactions.length && (
+            <span> (filtered from {transactions.length} total)</span>
+          )}
+        </div>
+        {selectedTransactionIds.size > 0 && (
+          <div className="text-blue-600 font-medium">
+            {selectedTransactionIds.size} transaction{selectedTransactionIds.size !== 1 ? 's' : ''} selected
+          </div>
         )}
       </div>
 
@@ -402,6 +548,13 @@ const TransactionsPage: React.FC = () => {
               <table className="w-full">
                 <thead className="border-b bg-gray-50">
                   <tr>
+                    <th className="text-left p-4 font-semibold">
+                      <Checkbox
+                        checked={allPageSelected}
+                        indeterminate={somePageSelected && !allPageSelected}
+                        onCheckedChange={handleSelectAllPage}
+                      />
+                    </th>
                     <th 
                       className="text-left p-4 font-semibold cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('date')}
@@ -432,8 +585,20 @@ const TransactionsPage: React.FC = () => {
                   {paginatedTransactions.map((transaction: any, index: number) => (
                     <tr 
                       key={transaction.id} 
-                      className={`border-b hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
+                      className={`border-b hover:bg-gray-50 ${
+                        selectedTransactionIds.has(transaction.id) 
+                          ? 'bg-blue-50' 
+                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                      }`}
                     >
+                      <td className="p-4">
+                        <Checkbox
+                          checked={selectedTransactionIds.has(transaction.id)}
+                          onCheckedChange={(checked) => 
+                            handleTransactionSelect(transaction.id, checked as boolean)
+                          }
+                        />
+                      </td>
                       <td className="p-4 text-sm">
                         {new Date(transaction.date).toLocaleDateString()}
                       </td>
@@ -547,6 +712,17 @@ const TransactionsPage: React.FC = () => {
         categories={categories}
         accounts={accounts}
         trips={trips}
+      />
+
+      <BulkEditTransactionModal
+        isOpen={isBulkEditModalOpen}
+        onClose={() => setIsBulkEditModalOpen(false)}
+        onSave={handleBulkEditSave}
+        selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
+        categories={categories}
+        accounts={accounts}
+        trips={trips}
+        familyMembers={familyMembers}
       />
 
       <DeleteConfirmDialog

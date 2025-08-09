@@ -12,8 +12,8 @@ export interface Transaction {
   amount_gbp: number;
   transaction_type: 'income' | 'expense' | 'transfer';
   trip_id: string | null;
-  family_member_id: string | null; // NEW: Family member reference
-  encord_expensable?: boolean; // NEW: Flag for encord expense
+  family_member_id: string | null;
+  encord_expensable?: boolean;
   category: {
     id: string;
     name: string;
@@ -28,7 +28,7 @@ export interface Transaction {
     id: string;
     name: string;
   } | null;
-  family_member: { // NEW: Family member data
+  family_member: {
     id: string;
     name: string;
     color: string;
@@ -58,7 +58,6 @@ export interface Trip {
   updated_at?: string;
 }
 
-// NEW: Family member interface
 export interface FamilyMember {
   id: string;
   user_id: string;
@@ -69,12 +68,23 @@ export interface FamilyMember {
   updated_at?: string;
 }
 
+export interface BulkUpdateResult {
+  successCount: number;
+  failureCount: number;
+  failures: Array<{
+    id: string;
+    description: string;
+    date: string;
+    error: string;
+  }>;
+}
+
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]); // NEW: Family members state
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -132,7 +142,7 @@ export function useTransactions() {
         console.log('No trips found or error fetching trips:', tripsError);
       }
 
-      // NEW: Fetch family members
+      // Fetch family members
       const { data: familyMembersData, error: familyMembersError } = await supabase
         .from('family_members')
         .select('*')
@@ -159,7 +169,7 @@ export function useTransactions() {
     category_id?: string; 
     account_id: string;
     trip_id?: string | null;
-    family_member_id?: string | null; // NEW: Family member support
+    family_member_id?: string | null;
   }) => {
     try {
       const { error } = await supabase
@@ -177,6 +187,90 @@ export function useTransactions() {
       console.error('Error adding transaction:', error);
       return { success: false, error };
     }
+  };
+
+  const bulkUpdateTransactions = async (
+    transactionIds: string[],
+    property: string,
+    value: any,
+    additionalData?: any
+  ): Promise<BulkUpdateResult> => {
+    const result: BulkUpdateResult = {
+      successCount: 0,
+      failureCount: 0,
+      failures: []
+    };
+
+    // Get transaction data for error reporting
+    const transactionMap = new Map(
+      transactions.map(t => [t.id, { description: t.description, date: t.date }])
+    );
+
+    // Process each transaction individually for better error handling
+    for (const transactionId of transactionIds) {
+      try {
+        // Build the update object based on the property
+        let updateData: any = {};
+
+        switch (property) {
+          case 'category':
+            updateData.category_id = value === 'none' ? null : value;
+            
+            // Handle Family Transfer special case
+            if (additionalData?.family_member_id) {
+              updateData.family_member_id = additionalData.family_member_id;
+              updateData.transaction_type = 'transfer';
+            } else if (value !== 'none') {
+              // If changing to a non-Family Transfer category, clear family member
+              const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+              if (value !== familyTransferCategory?.id) {
+                updateData.family_member_id = null;
+                updateData.transaction_type = 'expense'; // Reset to expense
+              }
+            }
+            break;
+            
+          case 'account':
+            updateData.account_id = value === 'none' ? null : value;
+            break;
+            
+          case 'trip':
+            updateData.trip_id = value === 'none' ? null : value;
+            break;
+            
+          case 'encord_expensable':
+            updateData.encord_expensable = value === 'true';
+            break;
+            
+          default:
+            throw new Error(`Unknown property: ${property}`);
+        }
+
+        // Update the transaction
+        const { error } = await supabase
+          .from('transactions')
+          .update(updateData)
+          .eq('id', transactionId)
+          .eq('user_id', user?.id); // Extra security check
+
+        if (error) throw error;
+
+        result.successCount++;
+      } catch (error) {
+        console.error(`Failed to update transaction ${transactionId}:`, error);
+        
+        const transactionInfo = transactionMap.get(transactionId);
+        result.failureCount++;
+        result.failures.push({
+          id: transactionId,
+          description: transactionInfo?.description || 'Unknown transaction',
+          date: transactionInfo?.date || 'Unknown date',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    return result;
   };
 
   const getMonthlyStats = () => {
@@ -310,7 +404,6 @@ export function useTransactions() {
     }));
   };
 
-  // NEW: Get family balance calculations
   const getFamilyBalances = () => {
     const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
     
@@ -326,14 +419,14 @@ export function useTransactions() {
       );
 
       const totalReceived = memberTransactions
-        .filter(t => t.amount_gbp > 0) // Money received from family
+        .filter(t => t.amount_gbp > 0)
         .reduce((sum, t) => sum + t.amount_gbp, 0);
 
       const totalGiven = memberTransactions
-        .filter(t => t.amount_gbp < 0) // Money given back to family
+        .filter(t => t.amount_gbp < 0)
         .reduce((sum, t) => sum + Math.abs(t.amount_gbp), 0);
 
-      const balance = totalReceived - totalGiven; // Positive = you owe them, Negative = they owe you
+      const balance = totalReceived - totalGiven;
 
       const lastTransaction = memberTransactions.length > 0 
         ? memberTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
@@ -360,14 +453,15 @@ export function useTransactions() {
     categories,
     accounts,
     trips,
-    familyMembers, // NEW: Return family members
+    familyMembers,
     loading,
     addTransaction,
+    bulkUpdateTransactions, // NEW: Bulk update functionality
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,
     getExpensesByTrip,
-    getFamilyBalances, // NEW: Return family balance calculations
+    getFamilyBalances,
     refetch: fetchData
   };
 }

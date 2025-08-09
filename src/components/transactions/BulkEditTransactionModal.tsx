@@ -108,7 +108,8 @@ export function BulkEditTransactionModal({
     }
   };
 
-  const getPropertyLabel = (property: EditableProperty) => {
+  const getPropertyLabel = (property: EditableProperty | '') => {
+    if (!property) return '';
     const labels = {
       category: 'Category',
       account: 'Account', 
@@ -118,7 +119,10 @@ export function BulkEditTransactionModal({
     return labels[property];
   };
 
-  const getValueLabel = (property: EditableProperty, valueId: string) => {
+  const getValueLabel = (property: EditableProperty | '', valueId: string) => {
+    if (!property) return '';
+    
+    switch (property) {
     switch (property) {
       case 'category':
         if (valueId === 'none') return 'No Category';
