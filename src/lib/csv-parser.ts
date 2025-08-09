@@ -6,7 +6,7 @@ export interface ParsedTransaction {
   currency: "USD" | "GBP";
   category: string;
   account: string;
-  encord: boolean;
+  encord_expensable: boolean;
   trip: string;
 }
 
@@ -46,7 +46,7 @@ const PERSONAL_CAPITAL_CATEGORY_MAP: Record<string, string> = {
   
   // Additional comprehensive mappings
   "advertising": "Other / Unknown",
-  "advisory fee": "Service Charges/Fees",
+  "advisory fee": "Investment",
   "atm/cash": "Service Charges/Fees",
   "automotive": "Commute",
   "bills": "Bills",
@@ -69,7 +69,7 @@ const PERSONAL_CAPITAL_CATEGORY_MAP: Record<string, string> = {
   "other income": "Income",
   "interest": "Income",
   "investment income": "Income",
-  "dividends received": "Income",
+  "dividends received": "Investment",
   "dividends received (tax-advantaged)": "Income",
   "deposits": "Income",
   
@@ -90,7 +90,7 @@ const PERSONAL_CAPITAL_CATEGORY_MAP: Record<string, string> = {
   "allocated excess cash": "Other / Unknown",
   "cash raised": "Other / Unknown",
   "client request": "Other / Unknown",
-  "credit card": "Other / Unknown",
+  "credit card": "Transfers",
   "expense reimbursement": "Other / Unknown",
   "general rebalance": "Other / Unknown",
   "uncategorized": "Other / Unknown",
@@ -125,14 +125,15 @@ const MONEYHUB_CATEGORY_MAP: Record<string, string> = {
   "hobbies": "Extras",
   "dues": "Bills",
   "gambling": "Extras",
+  "extras": "Extras",
   
   // Gifts
   "charitable": "Other / Unknown",
-  "gifts": "Extras",
+  "gifts to friends & family": "Extras",
   
   // Groceries
   "groceries": "Groceries",
-  "general": "Groceries",
+  "general merchandise": "Extras",
   
   // Health
   "healthcare": "Personal Care",
@@ -140,7 +141,7 @@ const MONEYHUB_CATEGORY_MAP: Record<string, string> = {
   
   // Household subcategories
   "child": "Extras",
-  "clothing": "Extras",
+  "clothing & shoes": "Extras",
   "education": "Personal Care", // Per your requirement
   "homemaintenance": "Other / Unknown",
   "homeimprovement": "Other / Unknown",
@@ -159,8 +160,10 @@ const MONEYHUB_CATEGORY_MAP: Record<string, string> = {
   "rental-income": "Income",
   "retirement": "Income",
   "rewards": "Income",
+  "salary": "Income",
   "sales": "Income",
   "services": "Income",
+  "work expenses": "Transfers",
   
   // Mixed
   "mixed": "Other / Unknown",
@@ -178,7 +181,7 @@ const MONEYHUB_CATEGORY_MAP: Record<string, string> = {
   "taxes": "Bills",
   
   // Transfers subcategories (per requirement #7)
-  "credit": "Transfers", // Credit card payments
+  "credit card payments": "Transfers", // Credit card payments
   "transfers": "Transfers",
   // "securities": handled conditionally by amount (positive = Investment, negative = Transfers)
   "savings": "Transfers",
@@ -194,7 +197,7 @@ const MONEYHUB_CATEGORY_MAP: Record<string, string> = {
   "transport": "Commute", 
   "bills": "Bills",
   "cash & cash equivalents": "Income",
-  "securities transfers": "Investment",
+  "securities trades": "Investment",
   "health": "Personal Care",
   "subscriptions": "Service Charges/Fees",
   "fees": "Service Charges/Fees",
@@ -380,9 +383,14 @@ export function parsePersonalCapitalCSV(csvContent: string): ParsedTransaction[]
         // columns[4] is Tags (ignored)
         const amount = parseFloat(columns[5]) || 0;   // Amount
         
-        // Use enhanced mapping with amount parameter
-        const category = mapPersonalCapitalCategory(categoryRaw || 'Other / Unknown', amount);
+        let category = mapPersonalCapitalCategory(categoryRaw || 'Other / Unknown', amount);
         const account = mapAccount(accountRaw || 'Capital One', true);
+
+        // Check if Investment category should be Transfers based on account type
+        const investmentAccounts = ['Vanguard', 'Wealthfront', 'Fidelity'];
+        if (category === 'Investment' && !investmentAccounts.includes(account)) {
+          category = 'Transfers';
+        };
         
         // Convert USD to GBP
         const amountGbp = amount * USD_TO_GBP_RATE;
@@ -397,7 +405,7 @@ export function parsePersonalCapitalCSV(csvContent: string): ParsedTransaction[]
           currency: "USD",
           category,
           account,
-          encord: false, // Default to false
+          encord_expensable: false, // Default to false
           trip: "", // Default to empty
         });
       }
@@ -441,7 +449,7 @@ export function parseMoneyHubCSV(csvContent: string): ParsedTransaction[] {
           currency: "GBP",
           category,
           account,
-          encord: false, // Default to false
+          encord_expensable: false, // Default to false
           trip: "", // Default to empty
         });
       }
