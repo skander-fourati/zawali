@@ -123,7 +123,6 @@ export function BulkEditTransactionModal({
     if (!property) return '';
     
     switch (property) {
-    switch (property) {
       case 'category':
         if (valueId === 'none') return 'No Category';
         const category = categories.find(c => c.id === valueId);
