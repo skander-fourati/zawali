@@ -273,6 +273,47 @@ export function useTransactions() {
     return result;
   };
 
+  const bulkDeleteTransactions = async (transactionIds: string[]): Promise<BulkUpdateResult> => {
+    const result: BulkUpdateResult = {
+      successCount: 0,
+      failureCount: 0,
+      failures: []
+    };
+
+    // Get transaction data for error reporting
+    const transactionMap = new Map(
+      transactions.map(t => [t.id, { description: t.description, date: t.date }])
+    );
+
+    // Process each transaction individually for better error handling
+    for (const transactionId of transactionIds) {
+      try {
+        const { error } = await supabase
+          .from('transactions')
+          .delete()
+          .eq('id', transactionId)
+          .eq('user_id', user?.id); // Extra security check
+
+        if (error) throw error;
+
+        result.successCount++;
+      } catch (error) {
+        console.error(`Failed to delete transaction ${transactionId}:`, error);
+        
+        const transactionInfo = transactionMap.get(transactionId);
+        result.failureCount++;
+        result.failures.push({
+          id: transactionId,
+          description: transactionInfo?.description || 'Unknown transaction',
+          date: transactionInfo?.date || 'Unknown date',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    return result;
+  };
+
   const getMonthlyStats = () => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -456,7 +497,8 @@ export function useTransactions() {
     familyMembers,
     loading,
     addTransaction,
-    bulkUpdateTransactions, // NEW: Bulk update functionality
+    bulkUpdateTransactions, // Bulk update functionality
+    bulkDeleteTransactions, // NEW: Bulk delete functionality
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,

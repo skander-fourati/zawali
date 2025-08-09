@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X, Edit3 } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Search, Filter, X, Edit3, Trash } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
 import { BulkEditTransactionModal } from "@/components/transactions/BulkEditTransactionModal";
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
+import { BulkDeleteConfirmDialog } from "@/components/transactions/BulkDeleteConfirmDialog";
 
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +28,8 @@ const TransactionsPage: React.FC = () => {
     familyMembers,
     loading,
     refetch,
-    bulkUpdateTransactions
+    bulkUpdateTransactions,
+    bulkDeleteTransactions
   } = useTransactions();
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,174 +51,44 @@ const TransactionsPage: React.FC = () => {
 
   // Bulk selection states
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+
+  // Keyboard state tracking
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   const ITEMS_PER_PAGE = 50;
 
-  // Handle individual transaction selection
-  const handleTransactionSelect = (transactionId: string, checked: boolean) => {
-    setSelectedTransactionIds(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(transactionId);
-      } else {
-        newSet.delete(transactionId);
-      }
-      return newSet;
-    });
-  };
+  // Track keyboard state
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      setIsShiftPressed(e.shiftKey);
+      setIsCtrlPressed(e.ctrlKey || e.metaKey);
+    };
 
-  // Handle select all on current page
-  const handleSelectAllPage = (checked: boolean) => {
-    setSelectedTransactionIds(prev => {
-      const newSet = new Set(prev);
-      
-      paginatedTransactions.forEach(transaction => {
-        if (checked) {
-          newSet.add(transaction.id);
-        } else {
-          newSet.delete(transaction.id);
-        }
-      });
-      
-      return newSet;
-    });
-  };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      setIsShiftPressed(e.shiftKey);
+      setIsCtrlPressed(e.ctrlKey || e.metaKey);
+    };
 
-  // Clear all selections
-  const clearAllSelections = () => {
-    setSelectedTransactionIds(new Set());
-  };
+    const handleWindowBlur = () => {
+      setIsShiftPressed(false);
+      setIsCtrlPressed(false);
+    };
 
-  // Handle edit transaction
-  const handleEdit = (transaction: any) => {
-    setEditingTransaction(transaction);
-  };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
 
-  // Handle delete with confirmation modal
-  const handleDelete = (transaction: any) => {
-    setDeletingTransaction(transaction);
-  };
-
-  // Confirm delete
-  const confirmDelete = async () => {
-    if (!deletingTransaction) return;
-
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', deletingTransaction.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Transaction deleted.",
-      });
-
-      refetch();
-      setDeletingTransaction(null);
-      
-      // Remove from selections if it was selected
-      setSelectedTransactionIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(deletingTransaction.id);
-        return newSet;
-      });
-    } catch (error) {
-      console.error('Delete error:', error);
-      toast({
-        title: "Error", 
-        description: "Failed to delete transaction.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle add transaction
-  const handleAddTransaction = () => {
-    setIsAddModalOpen(true);
-  };
-
-  // Handle modal save
-  const handleModalSave = () => {
-    refetch();
-    setIsAddModalOpen(false);
-    setEditingTransaction(null);
-  };
-
-  // Handle bulk edit
-  const handleBulkEdit = () => {
-    if (selectedTransactionIds.size === 0) {
-      toast({
-        title: "No transactions selected",
-        description: "Please select transactions to bulk edit.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsBulkEditModalOpen(true);
-  };
-
-  // Handle bulk edit save
-  const handleBulkEditSave = async (property: string, value: any, additionalData?: any) => {
-    if (selectedTransactionIds.size === 0) return;
-
-    try {
-      const selectedTransactionsData = transactions.filter(t => 
-        selectedTransactionIds.has(t.id)
-      );
-
-      const result = await bulkUpdateTransactions(
-        Array.from(selectedTransactionIds), 
-        property, 
-        value,
-        additionalData
-      );
-
-      if (result.successCount > 0) {
-        toast({
-          title: "Bulk Update Completed",
-          description: `Successfully updated ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
-        });
-      }
-
-      if (result.failures.length > 0) {
-        const failedDescriptions = result.failures.map(f => 
-          `${f.description} (${new Date(f.date).toLocaleDateString()})`
-        ).slice(0, 3); // Show only first 3
-
-        toast({
-          title: "Some updates failed",
-          description: `Failed to update: ${failedDescriptions.join(', ')}${result.failures.length > 3 ? ` and ${result.failures.length - 3} more...` : ''}`,
-          variant: "destructive",
-        });
-      }
-
-      // Refetch data and clear selections
-      await refetch();
-      clearAllSelections();
-      setIsBulkEditModalOpen(false);
-
-    } catch (error) {
-      console.error('Bulk edit error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to perform bulk edit.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
 
   // Clear all filters function
   const clearFilters = () => {
@@ -295,6 +167,254 @@ const TransactionsPage: React.FC = () => {
     return filteredAndSortedTransactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredAndSortedTransactions, currentPage]);
 
+  // Handle individual transaction selection with keyboard modifiers
+  const handleTransactionSelect = useCallback((transactionId: string, index: number) => {
+    setSelectedTransactionIds(prev => {
+      const newSet = new Set(prev);
+      
+      if (isShiftPressed && lastSelectedIndex !== -1) {
+        // Range selection: select all items between last selected and current
+        const startIndex = Math.min(lastSelectedIndex, index);
+        const endIndex = Math.max(lastSelectedIndex, index);
+        
+        for (let i = startIndex; i <= endIndex; i++) {
+          if (paginatedTransactions[i]) {
+            newSet.add(paginatedTransactions[i].id);
+          }
+        }
+      } else if (isCtrlPressed) {
+        // Individual toggle: add/remove without affecting others
+        if (newSet.has(transactionId)) {
+          newSet.delete(transactionId);
+        } else {
+          newSet.add(transactionId);
+        }
+      } else {
+        // Normal click: toggle this item only
+        if (newSet.has(transactionId)) {
+          newSet.delete(transactionId);
+        } else {
+          newSet.add(transactionId);
+        }
+      }
+      
+      return newSet;
+    });
+
+    // Update last selected index for range selection
+    setLastSelectedIndex(index);
+  }, [lastSelectedIndex, paginatedTransactions, isShiftPressed, isCtrlPressed]);
+
+  // Handle select all on current page
+  const handleSelectAllPage = (checked: boolean) => {
+    setSelectedTransactionIds(prev => {
+      const newSet = new Set(prev);
+      
+      paginatedTransactions.forEach(transaction => {
+        if (checked) {
+          newSet.add(transaction.id);
+        } else {
+          newSet.delete(transaction.id);
+        }
+      });
+      
+      return newSet;
+    });
+    
+    // Reset last selected index
+    setLastSelectedIndex(-1);
+  };
+
+  // Clear all selections
+  const clearAllSelections = () => {
+    setSelectedTransactionIds(new Set());
+    setLastSelectedIndex(-1);
+  };
+
+  // Handle edit transaction
+  const handleEdit = (transaction: any) => {
+    setEditingTransaction(transaction);
+  };
+
+  // Handle delete with confirmation modal
+  const handleDelete = (transaction: any) => {
+    setDeletingTransaction(transaction);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!deletingTransaction) return;
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', deletingTransaction.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Transaction deleted.",
+      });
+
+      refetch();
+      setDeletingTransaction(null);
+      
+      // Remove from selections if it was selected
+      setSelectedTransactionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(deletingTransaction.id);
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to delete transaction.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle add transaction
+  const handleAddTransaction = () => {
+    setIsAddModalOpen(true);
+  };
+
+  // Handle modal save
+  const handleModalSave = () => {
+    refetch();
+    setIsAddModalOpen(false);
+    setEditingTransaction(null);
+  };
+
+  // Handle bulk edit
+  const handleBulkEdit = () => {
+    if (selectedTransactionIds.size === 0) {
+      toast({
+        title: "No transactions selected",
+        description: "Please select transactions to bulk edit.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsBulkEditModalOpen(true);
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selectedTransactionIds.size === 0) {
+      toast({
+        title: "No transactions selected",
+        description: "Please select transactions to bulk delete.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsBulkDeleteModalOpen(true);
+  };
+
+  // Handle bulk edit save
+  const handleBulkEditSave = async (property: string, value: any, additionalData?: any) => {
+    if (selectedTransactionIds.size === 0) return;
+
+    try {
+      const result = await bulkUpdateTransactions(
+        Array.from(selectedTransactionIds), 
+        property, 
+        value,
+        additionalData
+      );
+
+      if (result.successCount > 0) {
+        toast({
+          title: "Bulk Update Completed",
+          description: `Successfully updated ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
+        });
+      }
+
+      if (result.failures.length > 0) {
+        const failedDescriptions = result.failures.map(f => 
+          `${f.description} (${new Date(f.date).toLocaleDateString()})`
+        ).slice(0, 3); // Show only first 3
+
+        toast({
+          title: "Some updates failed",
+          description: `Failed to update: ${failedDescriptions.join(', ')}${result.failures.length > 3 ? ` and ${result.failures.length - 3} more...` : ''}`,
+          variant: "destructive",
+        });
+      }
+
+      // Refetch data and clear selections
+      await refetch();
+      clearAllSelections();
+      setIsBulkEditModalOpen(false);
+
+    } catch (error) {
+      console.error('Bulk edit error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to perform bulk edit.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle bulk delete confirm
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedTransactionIds.size === 0) return;
+
+    setBulkDeleteLoading(true);
+    
+    try {
+      const result = await bulkDeleteTransactions(Array.from(selectedTransactionIds));
+
+      if (result.successCount > 0) {
+        toast({
+          title: "Bulk Delete Completed",
+          description: `Successfully deleted ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
+        });
+      }
+
+      if (result.failures.length > 0) {
+        const failedDescriptions = result.failures.map(f => 
+          `${f.description} (${new Date(f.date).toLocaleDateString()})`
+        ).slice(0, 3);
+
+        toast({
+          title: "Some deletions failed",
+          description: `Failed to delete: ${failedDescriptions.join(', ')}${result.failures.length > 3 ? ` and ${result.failures.length - 3} more...` : ''}`,
+          variant: "destructive",
+        });
+      }
+
+      // Refetch data and clear selections
+      await refetch();
+      clearAllSelections();
+      setIsBulkDeleteModalOpen(false);
+
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to perform bulk delete.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const totalPages = Math.ceil(filteredAndSortedTransactions.length / ITEMS_PER_PAGE);
 
   // Check if all transactions on current page are selected
@@ -364,12 +484,20 @@ const TransactionsPage: React.FC = () => {
                 Bulk Edit ({selectedTransactionIds.size})
               </Button>
               <Button 
+                variant="outline"
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700"
+              >
+                <Trash className="h-4 w-4" />
+                Bulk Delete ({selectedTransactionIds.size})
+              </Button>
+              <Button 
                 variant="ghost"
                 onClick={clearAllSelections}
                 className="flex items-center gap-2 text-muted-foreground"
               >
                 <X className="h-4 w-4" />
-                Clear Selection
+                Clear
               </Button>
             </>
           )}
@@ -382,6 +510,22 @@ const TransactionsPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Keyboard shortcuts info */}
+      {selectedTransactionIds.size > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-sm text-blue-800">
+            <span className="font-medium">Selection tips:</span>
+            <span className="ml-2">Hold <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">Shift</kbd> and click to select ranges</span>
+            <span className="ml-4">Hold <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">Ctrl/Cmd</kbd> and click to select individual items</span>
+            {(isShiftPressed || isCtrlPressed) && (
+              <span className="ml-4 text-blue-600 font-medium">
+                {isShiftPressed && "Shift"} {isShiftPressed && isCtrlPressed && "+"} {isCtrlPressed && "Ctrl/Cmd"} active
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <Card className="mb-6">
@@ -585,17 +729,23 @@ const TransactionsPage: React.FC = () => {
                   {paginatedTransactions.map((transaction: any, index: number) => (
                     <tr 
                       key={transaction.id} 
-                      className={`border-b hover:bg-gray-50 ${
+                      className={`border-b hover:bg-gray-50 cursor-pointer ${
                         selectedTransactionIds.has(transaction.id) 
                           ? 'bg-blue-50' 
                           : index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
                       }`}
+                      onClick={(e) => {
+                        // Don't trigger selection if clicking on action buttons
+                        if (!(e.target as HTMLElement).closest('.action-buttons')) {
+                          handleTransactionSelect(transaction.id, index);
+                        }
+                      }}
                     >
-                      <td className="p-4">
+                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedTransactionIds.has(transaction.id)}
-                          onCheckedChange={(checked) => 
-                            handleTransactionSelect(transaction.id, checked as boolean)
+                          onCheckedChange={() => 
+                            handleTransactionSelect(transaction.id, index)
                           }
                         />
                       </td>
@@ -651,11 +801,14 @@ const TransactionsPage: React.FC = () => {
                         )}
                       </td>
                       <td className="p-4 text-center">
-                        <div className="flex gap-2 justify-center">
+                        <div className="flex gap-2 justify-center action-buttons">
                           <Button 
                             size="sm" 
                             variant="ghost" 
-                            onClick={() => handleEdit(transaction)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(transaction);
+                            }}
                             className="h-8 w-8 p-0"
                           >
                             <Edit className="h-4 w-4" />
@@ -663,7 +816,10 @@ const TransactionsPage: React.FC = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleDelete(transaction)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(transaction);
+                            }}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -723,6 +879,14 @@ const TransactionsPage: React.FC = () => {
         accounts={accounts}
         trips={trips}
         familyMembers={familyMembers}
+      />
+
+      <BulkDeleteConfirmDialog
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDeleteConfirm}
+        selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
+        loading={bulkDeleteLoading}
       />
 
       <DeleteConfirmDialog
