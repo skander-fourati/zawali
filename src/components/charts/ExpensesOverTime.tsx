@@ -74,7 +74,9 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
-    }).format(value);
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(value));
   };
 
   // Process data for the stacked chart AND calculate totals for labels
@@ -157,52 +159,54 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
         <CardTitle className="text-lg font-semibold">Expenses Over Last 12 Months by Category</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart 
-              data={processedData} 
-              margin={{ top: 50, right: 30, left: 20, bottom: 5 }}
-            >
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickFormatter={formatCurrency}
-              />
-              
-              <ChartTooltip content={customTooltip} />
-              
-              {/* EXPLANATION: Create stacked bars using resolved colors from chartConfig */}
-              {categoryArray.map((category, index) => {
-                const isTopBar = index === categoryArray.length - 1;
-                const categoryColor = chartConfig[category]?.color || fallbackColors[0];
+        <div className="flex justify-center">
+          <ChartContainer config={chartConfig} className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={processedData} 
+                margin={{ top: 50, right: 30, left: 20, bottom: 5 }}
+              >
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={formatCurrency}
+                />
                 
-                return (
-                  <Bar 
-                    key={category}
-                    dataKey={category} 
-                    stackId="expenses"
-                    fill={categoryColor} /* Use resolved color */
-                    radius={isTopBar ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                  >
-                    {/* Add monthly totals ONLY to the topmost bar */}
-                    {isTopBar && (
-                      <LabelList
-                        dataKey="totalAmount"
-                        position="top"
-                        formatter={(value: number) => value > 0 ? `£${value.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : ''}
-                        fontSize={12}
-                        fill="#666"
-                      />
-                    )}
-                  </Bar>
-                );
-              })}
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+                <ChartTooltip content={customTooltip} />
+                
+                {/* EXPLANATION: Create stacked bars using resolved colors from chartConfig */}
+                {categoryArray.map((category, index) => {
+                  const isTopBar = index === categoryArray.length - 1;
+                  const categoryColor = chartConfig[category]?.color || fallbackColors[0];
+                  
+                  return (
+                    <Bar 
+                      key={category}
+                      dataKey={category} 
+                      stackId="expenses"
+                      fill={categoryColor} /* Use resolved color */
+                      radius={isTopBar ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                    >
+                      {/* Add monthly totals ONLY to the topmost bar */}
+                      {isTopBar && (
+                        <LabelList
+                          dataKey="totalAmount"
+                          position="top"
+                          formatter={(value: number) => value > 0 ? `£${Math.round(value).toLocaleString('en-GB')}` : ''}
+                          fontSize={12}
+                          fill="#666"
+                        />
+                      )}
+                    </Bar>
+                  );
+                })}
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );

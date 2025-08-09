@@ -115,7 +115,7 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
                 fill="#8884d8" 
                 dataKey="amount" 
                 label={({ category, percent }) => {
-                  return `${category} (${(percent * 100).toFixed(0)}%)`;
+                  return percent >= 0.05 ? `${category} (${(percent * 100).toFixed(0)}%)` : null;
                 }}
                 labelLine={true} 
               >

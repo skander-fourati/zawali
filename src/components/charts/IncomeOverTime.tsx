@@ -8,13 +8,17 @@ interface IncomeOverTimeProps {
     month: string;
     amount: number;
   }>;
+  categoryColors?: Record<string, string>; // NEW: Add category colors
 }
 
-export function IncomeOverTime({ data }: IncomeOverTimeProps) {
+export function IncomeOverTime({ data, categoryColors = {} }: IncomeOverTimeProps) {
+  // Use Income category color if available, otherwise default
+  const incomeColor = categoryColors['Income'] || '#2D5016';
+
   const chartConfig = {
     amount: {
       label: 'Monthly Income',
-      color: '#2D5016', // Dark forest green
+      color: incomeColor,
     },
   };
 
@@ -22,7 +26,9 @@ export function IncomeOverTime({ data }: IncomeOverTimeProps) {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
-    }).format(value);
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(value));
   };
 
   return (
@@ -31,47 +37,49 @@ export function IncomeOverTime({ data }: IncomeOverTimeProps) {
         <CardTitle className="text-lg font-semibold">Income Over Last 12 Months</CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
-              <XAxis 
-                dataKey="month" 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickFormatter={formatCurrency}
-              />
-              <ChartTooltip 
-                content={({ active, payload, label }: any) => {
-                  if (active && payload && payload.length) {
-                    const value = payload[0].value;
-                    return (
-                      <div className="bg-white p-2 border rounded shadow">
-                        <p className="font-medium">{formatCurrency(value)}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar 
-                dataKey="amount" 
-                fill="#2D5016" // Dark forest green
-                radius={[4, 4, 0, 0]}
-              >
-                {/* Add total labels on top of bars - only show if amount > 0 */}
-                <LabelList
-                  dataKey="amount"
-                  position="top"
-                  formatter={(value: number) => value > 0 ? formatCurrency(value) : ''}
-                  fontSize={12}
-                  fill="#666"
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+        <div className="flex justify-center">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={formatCurrency}
+                    />
+                    <ChartTooltip 
+                      content={({ active, payload, label }: any) => {
+                        if (active && payload && payload.length) {
+                          const value = payload[0].value;
+                          return (
+                            <div className="bg-white p-2 border rounded shadow">
+                              <p className="font-medium">{formatCurrency(value)}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="amount" 
+                      fill={incomeColor}
+                      radius={[4, 4, 0, 0]}
+                    >
+                      {/* Add total labels on top of bars - only show if amount > 0 */}
+                      <LabelList
+                        dataKey="amount"
+                        position="top"
+                        formatter={(value: number) => value > 0 ? formatCurrency(value) : ''}
+                        fontSize={12}
+                        fill="#666"
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );
