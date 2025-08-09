@@ -16,6 +16,7 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { chartCalculations } from "@/lib/chartCalculations"; // NEW: Import centralized calculations
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -27,19 +28,14 @@ const Index = () => {
     accounts,
     trips,
     loading: transactionsLoading,
-    getMonthlyStats,
-    getExpensesByCategory,
-    getLast12MonthsData,
-    getExpensesByTrip,
-    getFamilyBalances, // NEW: Get family balances calculator
+    getFamilyBalances, // Keep family balances from hook for now
     refetch
   } = useTransactions();
 
-  // NEW: Transaction modal state
+  // Transaction modal state
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
-
-  const [categoryColors, setCategoryColors] = useState<Record<string, string>>({});
+  const [categoryColors, setCategoryColors] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -73,7 +69,7 @@ const Index = () => {
           acc[category.name] = category.color;
         }
         return acc;
-      }, {} as Record<string, string>) || {};
+      }, {}) || {};
 
       setCategoryColors(colorMap);
     } catch (error) {
@@ -96,224 +92,32 @@ const Index = () => {
     });
   };
 
-  // NEW: Handle opening transaction modal
   const handleAddTransactionClick = () => {
     setEditingTransaction(null);
     setIsTransactionModalOpen(true);
   };
 
-  // NEW: Handle transaction saved
   const handleTransactionSaved = () => {
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
-    refetch(); // Refresh all data
+    refetch();
     setRefreshKey(prev => prev + 1);
-  };
-
-  // IMPROVED DATA PROCESSING - Fixed to work with existing types
-  const getFilteredTransactions = () => {
-    return transactions.filter(t => t.transaction_type !== 'transfer');
-  };
-
-  const getImprovedExpensesByCategory = () => {
-    const categoryTotals: Record<string, number> = {};
-    
-    getFilteredTransactions().forEach(transaction => {
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      // Exclude INVESTMENT category from expenses
-      if (categoryName === 'Investment') return;
-      
-      // Handle INCOME category - only include positive amounts (refunds)
-      if (categoryName === 'Income') {
-        if (amount > 0) {
-          categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + amount; // Refunds reduce expenses
-        }
-        return;
-      }
-      
-      // For other categories, include negative amounts (actual expenses) but show as positive
-      if (amount < 0) {
-        categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + Math.abs(amount);
-      }
-    });
-  
-    // Fallback colors (same as your original)
-    const colors = [
-      'hsl(220, 70%, 50%)', 
-      'hsl(10, 70%, 50%)', 
-      'hsl(120, 70%, 50%)', 
-      'hsl(40, 70%, 50%)', 
-      'hsl(280, 70%, 50%)', 
-      'hsl(180, 70%, 50%)'
-    ];
-    
-    return Object.entries(categoryTotals)
-      .map(([category, amount], index) => ({
-        category,
-        amount,
-        // ✅ FIXED: Use database color first, then fallback
-        color: categoryColors[category] || colors[index % colors.length]
-      }))
-      .sort((a, b) => b.amount - a.amount); // Sort by amount descending
-  };
-
-  const getImprovedExpensesOverTime = () => {
-    const monthlyData: Record<string, Record<string, number>> = {};
-    
-    getFilteredTransactions().forEach(transaction => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toISOString().slice(0, 7);
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      // Apply same filtering as category chart
-      if (categoryName === 'Investment') return;
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {};
-      }
-      
-      if (categoryName === 'Income') {
-        // Only include positive income amounts (refunds)
-        if (amount > 0) {
-          monthlyData[monthKey][categoryName] = (monthlyData[monthKey][categoryName] || 0) + amount;
-        }
-      } else if (amount < 0) {
-        // For other categories, include negative amounts but store as positive
-        monthlyData[monthKey][categoryName] = (monthlyData[monthKey][categoryName] || 0) + Math.abs(amount);
-      }
-    });
-
-    return Object.entries(monthlyData)
-      .map(([month, categories]) => {
-        const totalAmount = Object.values(categories).reduce((sum, amount) => sum + amount, 0);
-        return {
-          month: new Date(month + '-01').toLocaleDateString('en-US', { 
-            month: 'short', 
-            year: 'numeric' 
-          }),
-          amount: totalAmount,
-          categories
-        };
-      })
-      .sort((a, b) => a.month.localeCompare(b.month));
-  };
-
-  // SIMPLIFIED: Trip functions now use data directly from transactions (fixed)
-  const getImprovedExpensesByTrip = () => {
-    const tripTotals: Record<string, number> = {};
-    
-    getFilteredTransactions().forEach(transaction => {
-      const tripName = transaction.trip?.name; // This should work now
-      
-      if (!tripName) return; // Only include transactions with trips
-      
-      const amount = transaction.amount_gbp || 0;
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      
-      // Use same filtering logic as expenses
-      if (categoryName === 'Investment') return;
-      
-      if (categoryName === 'Income') {
-        // Only include positive income amounts (refunds)  
-        if (amount > 0) {
-          tripTotals[tripName] = (tripTotals[tripName] || 0) + amount;
-        }
-      } else if (amount < 0) {
-        // For other categories, include negative amounts but store as positive
-        tripTotals[tripName] = (tripTotals[tripName] || 0) + Math.abs(amount);
-      }
-    });
-
-    const colors = [
-      'hsl(260, 70%, 50%)', 'hsl(30, 70%, 50%)', 'hsl(150, 70%, 50%)',
-      'hsl(200, 70%, 50%)', 'hsl(320, 70%, 50%)', 'hsl(80, 70%, 50%)'
-    ];
-    
-    return Object.entries(tripTotals)
-      .map(([trip, amount], index) => ({
-        trip,
-        amount,
-        color: colors[index % colors.length]
-      }))
-      .sort((a, b) => b.amount - a.amount); // Sort by amount descending
-  };
-
-  const getImprovedSavingsOverTime = () => {
-    const monthlyData: Record<string, { income: number; expenses: number }> = {};
-    
-    getFilteredTransactions().forEach(transaction => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toISOString().slice(0, 7);
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { income: 0, expenses: 0 };
-      }
-      
-      // FIXED: Proper savings calculation excluding investments
-      if (categoryName === 'Investment') return; // Skip investments entirely
-      
-      if (categoryName === 'Income' && amount > 0) {
-        // Positive income amounts
-        monthlyData[monthKey].income += amount;
-      } else if (amount < 0) {
-        // Negative amounts are expenses - convert to positive for calculation
-        monthlyData[monthKey].expenses += Math.abs(amount);
-      }
-    });
-
-    return Object.entries(monthlyData)
-      .map(([month, data]) => ({
-        month: new Date(month + '-01').toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
-        }),
-        amount: data.income - data.expenses // Savings = Income - Expenses (both as positive numbers)
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
-  };
-
-  const getInvestmentsOverTime = () => {
-    const monthlyInvestments: Record<string, number> = {};
-    
-    getFilteredTransactions().forEach(transaction => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toISOString().slice(0, 7);
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      // Investment transactions: negative amounts (money leaving account) 
-      // or transactions in the "Investment" category
-      if (categoryName === 'Investment' || 
-          (amount < 0 && ['Wealthfront', 'Fidelity', 'Vanguard', 'Dodl'].includes(transaction.account?.name || ''))) {
-        monthlyInvestments[monthKey] = (monthlyInvestments[monthKey] || 0) + Math.abs(amount);
-      }
-    });
-
-    return Object.entries(monthlyInvestments)
-      .map(([month, amount]) => ({
-        month: new Date(month + '-01').toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
-        }),
-        amount
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
   };
 
   if (loading || !user) {
     return null;
   }
 
-  const monthlyStats = getMonthlyStats();
-  const expensesByCategory = getExpensesByCategory();
-  const last12MonthsData = getLast12MonthsData();
+  // UPDATED: Use centralized calculations
+  const monthlyStats = chartCalculations.getMonthlyStats(transactions);
+  const expensesByCategory = chartCalculations.getExpensesByCategory(transactions, categoryColors);
+  const expensesOverTime = chartCalculations.getExpensesOverTime(transactions, categoryColors);
+  const incomeOverTime = chartCalculations.getIncomeOverTime(transactions);
+  const savingsOverTime = chartCalculations.getSavingsOverTime(transactions);
+  const investmentsOverTime = chartCalculations.getInvestmentsOverTime(transactions);
+  const expensesByTrip = chartCalculations.getExpensesByTrip(transactions);
 
-  // NEW: Get family balances and recent family transactions
+  // Keep family balances logic from existing hook
   const familyBalances = getFamilyBalances();
   const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
   const recentFamilyTransactions = transactions
@@ -333,12 +137,31 @@ const Index = () => {
       }
     }));
 
+  // Recent transactions for display (using same base filtering as calculations)
+  const recentTransactionsForDisplay = transactions
+    .filter(t => 
+      // Apply same base filtering as chart calculations
+      t.encord_expensable !== true && 
+      t.category?.name !== 'Transfers' && 
+      t.category?.name !== 'Family Transfer' &&
+      t.transaction_type !== 'transfer'
+    )
+    .slice(0, 5)
+    .map(t => ({
+      id: t.id,
+      date: t.date,
+      description: t.description,
+      amount: t.amount_gbp,
+      category: t.category?.name || 'Uncategorized',
+      type: t.transaction_type as 'income' | 'expense',
+    }));
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6 max-w-7xl">
           <DashboardHeader 
-            onAddTransactionClick={handleAddTransactionClick} // UPDATED: Changed prop name
+            onAddTransactionClick={handleAddTransactionClick}
             onTransactionsUploaded={handleTransactionsUploaded}
           />
           
@@ -353,16 +176,8 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <RecentTransactions 
               key={`transactions-${refreshKey}`}
-              transactions={transactions.slice(0, 5).filter(t => t.transaction_type !== 'transfer').map(t => ({
-                id: t.id,
-                date: t.date,
-                description: t.description,
-                amount: t.amount_gbp,
-                category: t.category?.name || 'Uncategorized',
-                type: t.transaction_type as 'income' | 'expense'
-              }))} 
+              transactions={recentTransactionsForDisplay} 
             />
-            {/* UPDATED: FamilyBalances with real data */}
             <FamilyBalances 
               balances={familyBalances}
               recentTransactions={recentFamilyTransactions}
@@ -374,42 +189,56 @@ const Index = () => {
             <div className="w-full">
               <ExpensesOverTime 
                 key={`expenses-time-${refreshKey}`}
-                data={getImprovedExpensesOverTime()}
+                data={expensesOverTime}
                 categoryColors={categoryColors} 
               />
             </div>
 
-            {/* Rest of the charts in 2-column grid */}
+            {/* ExpensesByCategory in 2-column layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <ExpensesByCategory 
                 key={`expenses-category-${refreshKey}`}
-                data={getImprovedExpensesByCategory()} 
+                data={expensesByCategory} 
               />
-              <IncomeOverTime 
-                key={`income-time-${refreshKey}`}
-                data={last12MonthsData.map(m => ({ 
-                  month: m.month, 
-                  amount: m.income
-                }))} 
-              />
-              <SavingsOverTime 
-                key={`savings-time-${refreshKey}`}
-                data={getImprovedSavingsOverTime()}
-              />        
-              <InvestmentsOverTime 
-                key={`investments-time-${refreshKey}`}
-                data={getInvestmentsOverTime()}
-              />
+              {/* Placeholder for symmetry */}
+              <div></div>
+            </div>
+
+            {/* Full-width ExpensesByTrip - same format as Expenses Over Time */}
+            <div className="w-full">
               <ExpensesByTrip 
                 key={`expenses-trip-${refreshKey}`}
-                data={getImprovedExpensesByTrip()}
+                data={expensesByTrip}
               />
-              {/* Add a placeholder div if you want even number of items in the grid */}
-              <div></div>
+            </div>
+
+            {/* Full-width IncomeOverTime - same format as Expenses Over Time */}
+            <div className="w-full">
+              <IncomeOverTime 
+                key={`income-time-${refreshKey}`}
+                data={incomeOverTime}
+                categoryColors={categoryColors}
+              />
+            </div>
+
+            {/* Full-width SavingsOverTime - same format as Expenses Over Time */}
+            <div className="w-full">
+              <SavingsOverTime 
+                key={`savings-time-${refreshKey}`}
+                data={savingsOverTime}
+              />
+            </div>
+
+            {/* Full-width InvestmentsOverTime - same format as Expenses Over Time */}
+            <div className="w-full">
+              <InvestmentsOverTime 
+                key={`investments-time-${refreshKey}`}
+                data={investmentsOverTime}
+                categoryColors={categoryColors}
+              />
             </div>
           </div>
 
-          {/* NEW: Transaction Modal */}
           <AddEditTransactionModal
             isOpen={isTransactionModalOpen}
             onClose={() => setIsTransactionModalOpen(false)}
