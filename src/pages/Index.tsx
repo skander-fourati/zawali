@@ -109,13 +109,18 @@ const Index = () => {
   }
 
   // UPDATED: Use centralized calculations
+// UPDATED: Use centralized calculations
   const monthlyStats = chartCalculations.getMonthlyStats(transactions);
+  const lastMonthStats = chartCalculations.getLastMonthStats(transactions);
+  const totalSavings = chartCalculations.getTotalSavings(transactions);
+  const totalInvestments = chartCalculations.getTotalInvestments(transactions);
   const expensesByCategory = chartCalculations.getExpensesByCategory(transactions, categoryColors);
   const expensesOverTime = chartCalculations.getExpensesOverTime(transactions, categoryColors);
   const incomeOverTime = chartCalculations.getIncomeOverTime(transactions);
   const savingsOverTime = chartCalculations.getSavingsOverTime(transactions);
   const investmentsOverTime = chartCalculations.getInvestmentsOverTime(transactions);
   const expensesByTrip = chartCalculations.getExpensesByTrip(transactions);
+  const averageIncome12Months = chartCalculations.get12MonthAverageIncome(transactions);
 
   // Keep family balances logic from existing hook
   const familyBalances = getFamilyBalances();
@@ -167,10 +172,13 @@ const Index = () => {
           
           <MetricsCards 
             key={`metrics-${refreshKey}`}
-            totalBalance={monthlyStats.totalBalance}
+            totalSavings={totalSavings}
+            totalInvestments={totalInvestments}
             monthlyIncome={monthlyStats.monthlyIncome}
             monthlyExpenses={monthlyStats.monthlyExpenses}
-            investments={monthlyStats.totalBalance - monthlyStats.monthlyIncome + monthlyStats.monthlyExpenses}
+            lastMonthIncome={lastMonthStats.lastMonthIncome}
+            lastMonthExpenses={lastMonthStats.lastMonthExpenses}
+            averageIncome12Months={averageIncome12Months}
           />
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
