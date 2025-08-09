@@ -13,6 +13,7 @@ export interface Transaction {
   transaction_type: 'income' | 'expense' | 'transfer';
   trip_id: string | null;
   family_member_id: string | null; // NEW: Family member reference
+  encord_expensable?: boolean; // NEW: Flag for encord expense
   category: {
     id: string;
     name: string;
@@ -87,7 +88,6 @@ export function useTransactions() {
     try {
       setLoading(true);
 
-      // UPDATED: Fetch transactions with family member data included
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
@@ -98,7 +98,8 @@ export function useTransactions() {
           family_member:family_members(id, name, color, status)
         `)
         .eq('user_id', user?.id)
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(1000000);
 
       if (transactionsError) throw transactionsError;
 
