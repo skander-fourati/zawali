@@ -221,46 +221,49 @@ export const chartCalculations = {
     }));
   },
 
-  /**
-   * Calculate savings over time (Income - Expenses, excluding investments)
-   * @param {Array} transactions 
-   * @returns {Array} - Monthly savings data
-   */
-  getSavingsOverTime: (transactions) => {
-    const monthlyData = {};
+/**
+ * Calculate savings over time (Income - Expenses, excluding investments)
+ * @param {Array} transactions 
+ * @returns {Array} - Monthly savings data
+ */
+getSavingsOverTime: (transactions) => {
+  const monthlyData = {};
+  
+  getSavingsFilteredTransactions(transactions).forEach(transaction => {
+    const date = new Date(transaction.date);
+    const monthKey = date.toISOString().slice(0, 7);
+    const categoryName = transaction.category?.name || 'Uncategorized';
+    const amount = transaction.amount_gbp || 0;
     
-    getSavingsFilteredTransactions(transactions).forEach(transaction => {
-      const date = new Date(transaction.date);
-      const monthKey = date.toISOString().slice(0, 7);
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { income: 0, expenses: 0 };
-      }
-      
-      if (categoryName === 'Income' && amount > 0) {
-        // Positive income amounts
-        monthlyData[monthKey].income += amount;
-      } else if (categoryName !== 'Income' && amount < 0) {
-        // Negative amounts are expenses - convert to positive for calculation
+    if (!monthlyData[monthKey]) {
+      monthlyData[monthKey] = { income: 0, expenses: 0, refunds: 0 }; // FIXED: Track refunds separately
+    }
+    
+    if (categoryName === 'Income' && amount > 0) {
+      // Positive income amounts
+      monthlyData[monthKey].income += amount;
+    } else if (categoryName !== 'Income') {
+      // FIXED: Track expenses and refunds separately
+      if (amount < 0) {
+        // Negative amounts are expenses
         monthlyData[monthKey].expenses += Math.abs(amount);
-      } else if (categoryName !== 'Income' && amount > 0) {
-        // Positive amounts in expense categories (refunds) - reduce expenses
-        monthlyData[monthKey].expenses = Math.max(0, monthlyData[monthKey].expenses - amount);
+      } else if (amount > 0) {
+        // Positive amounts in expense categories are refunds
+        monthlyData[monthKey].refunds += amount;
       }
-    });
+    }
+  });
 
-    return Object.entries(monthlyData)
-    .sort(([a], [b]) => new Date(a + '-01').getTime() - new Date(b + '-01').getTime()) // Sort by date first
-      .map(([month, data]) => ({
-        month: new Date(month + '-01').toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
-        }),
-        amount: data.income - data.expenses // Savings = Income - Expenses
-      }))
-  },
+  return Object.entries(monthlyData)
+    .sort(([a], [b]) => new Date(a + '-01').getTime() - new Date(b + '-01').getTime())
+    .map(([month, data]) => ({
+      month: new Date(month + '-01').toLocaleDateString('en-US', { 
+        month: 'short', 
+        year: 'numeric' 
+      }),
+      amount: data.income - Math.max(0, data.expenses - data.refunds) // FIXED: Net expenses calculation
+    }));
+},
 
   /**
    * Calculate investments over time
@@ -416,5 +419,88 @@ const tripTransactions = getExpenseFilteredTransactions(transactions).filter(t =
       monthlyExpenses: netMonthlyExpenses,
       monthlySavings: monthlyIncome - netMonthlyExpenses
     };
-  }
+  },
+
+/**
+ * Calculate total savings (cumulative over all time)
+ * @param {Array} transactions 
+ * @returns {number} - Total cumulative savings
+ */
+getTotalSavings: (transactions) => {
+  const savingsData = chartCalculations.getSavingsOverTime(transactions);
+  return savingsData.reduce((total, month) => total + month.amount, 0);
+},
+
+/**
+ * Calculate total investments (cumulative over all time)
+ * @param {Array} transactions 
+ * @returns {number} - Total cumulative investments
+ */
+getTotalInvestments: (transactions) => {
+  const investmentData = chartCalculations.getInvestmentsOverTime(transactions);
+  return investmentData.reduce((total, month) => total + month.amount, 0);
+},
+
+/**
+ * Calculate last month's stats for comparison
+ * @param {Array} transactions 
+ * @returns {Object} - Last month's financial stats
+ */
+getLastMonthStats: (transactions) => {
+  const now = new Date();
+  const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+  const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+  const baseFilteredTransactions = getBaseFilteredTransactions(transactions);
+  
+  const lastMonthTransactions = baseFilteredTransactions.filter(t => {
+    const transactionDate = new Date(t.date);
+    return transactionDate.getMonth() === lastMonth && 
+           transactionDate.getFullYear() === lastMonthYear;
+  });
+
+  // Calculate last month's income
+  const lastMonthIncome = lastMonthTransactions
+    .filter(t => t.category?.name === 'Income' && t.amount_gbp > 0)
+    .reduce((sum, t) => sum + t.amount_gbp, 0);
+
+  // Calculate last month's expenses with same logic as current month
+  let grossExpenses = 0;
+  let expenseRefunds = 0;
+  
+  lastMonthTransactions
+    .filter(t => t.category?.name !== 'Income' && t.category?.name !== 'Investment')
+    .forEach(t => {
+      const amount = t.amount_gbp || 0;
+      if (amount < 0) {
+        grossExpenses += Math.abs(amount);
+      } else if (amount > 0) {
+        expenseRefunds += amount;
+      }
+    });
+  
+  const lastMonthExpenses = Math.max(0, grossExpenses - expenseRefunds);
+
+  return {
+    lastMonthIncome,
+    lastMonthExpenses,
+  };
+},
+
+/**
+ * Calculate 12-month average income
+ * @param {Array} transactions 
+ * @returns {number} - Average monthly income over last 12 months
+ */
+get12MonthAverageIncome: (transactions) => {
+  const incomeData = chartCalculations.getIncomeOverTime(transactions);
+  
+  // Get last 12 months of data
+  const last12Months = incomeData.slice(-12);
+  
+  if (last12Months.length === 0) return 0;
+  
+  const totalIncome = last12Months.reduce((sum, month) => sum + month.amount, 0);
+  return totalIncome / last12Months.length;
+},
 };
