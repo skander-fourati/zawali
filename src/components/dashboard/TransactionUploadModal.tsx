@@ -39,7 +39,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
   const [step, setStep] = useState<StepType>("upload");
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-  const [accounts, setAccounts] = useState<{id: string, name: string}[]>([]);
+  const [accounts, setAccounts] = useState<{id: string, name: string, account_type: string}[]>([]);
   const [validationErrors, setValidationErrors] = useState<{[key: number]: ValidationError[]}>({});
   const { toast } = useToast();
 
@@ -63,7 +63,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
 
       const [categoriesResult, accountsResult] = await Promise.all([
         supabase.from("categories").select("id, name").eq("user_id", user.id),
-        supabase.from("accounts").select("id, name").eq("user_id", user.id)
+        supabase.from("accounts").select("id, name, account_type").eq("user_id", user.id)
       ]);
 
       if (categoriesResult.data) setCategories(categoriesResult.data);
@@ -72,6 +72,26 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
       console.error("Error loading categories and accounts:", error);
     }
   };
+
+  const applyInvestmentLogic = (transactions: EditableTransaction[]): EditableTransaction[] => {
+    const accountTypeMap = new Map(accounts.map(acc => [acc.name, acc.account_type]));
+    
+    return transactions.map(tx => {
+      if (tx.category === "Investment") {
+        const accountType = accountTypeMap.get(tx.account);
+        if (accountType !== "investment") {
+          return {
+            ...tx,
+            category: "Transfers",
+            isEdited: true,
+            originalValues: { ...tx.originalValues, category: "Investment" }
+          };
+        }
+      }
+      return tx;
+    });
+  };
+
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -101,12 +121,14 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
       }
 
       // Convert to editable transactions
-      const editableTransactions: EditableTransaction[] = parsed.map(tx => ({
+      let editableTransactions: EditableTransaction[] = parsed.map(tx => ({
         ...tx,
         isEdited: false,
         originalValues: {},
         suspiciousReasons: []
       }));
+
+      editableTransactions = applyInvestmentLogic(editableTransactions);
 
       setParsedTransactions(editableTransactions);
       setStep("preview");
@@ -389,7 +411,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
           amount_gbp: tx.amount_gbp,
           exchange_rate: tx.currency === "USD" ? USD_TO_GBP_RATE : 1.0,
           transaction_type: tx.amount_gbp > 0 ? "income" : "expense",
-          encord: tx.encord
+          encord_expensable: tx.encord_expensable
         };
       });
 
@@ -518,7 +540,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
       );
     }
 
-    if (field === 'encord') {
+    if (field === 'encord_expensable') {
       return (
         <div className="flex justify-center">
           <input
@@ -647,7 +669,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                             <td className="p-1">{renderEditableCell(tx, index, 'amount_usd')}</td>
                           )}
                           <td className="p-1">{renderEditableCell(tx, index, 'amount_gbp')}</td>
-                          <td className="p-1">{renderEditableCell(tx, index, 'encord')}</td>
+                          <td className="p-1">{renderEditableCell(tx, index, 'encord_expensable')}</td>
                           <td className="p-1">
                             {tx.isEdited && (
                               <Button
@@ -750,7 +772,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                             <td className="p-1">{renderEditableCell(tx, index, 'amount_usd', true)}</td>
                           )}
                           <td className="p-1">{renderEditableCell(tx, index, 'amount_gbp', true)}</td>
-                          <td className="p-1">{renderEditableCell(tx, index, 'encord', true)}</td>
+                          <td className="p-1">{renderEditableCell(tx, index, 'encord_expensable', true)}</td>
                           <td className="p-1">
                             <div className="space-y-1">
                               {tx.suspiciousReasons.map((reason, i) => (
