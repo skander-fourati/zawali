@@ -5,7 +5,9 @@
     "main": "index.js",
     "scripts": {
         "import-historic-fam-balances": "tsx migrations/import-historic-fam-balances.ts",
-        "import-historic-fam-balances:prod": "tsx migrations/import-historic-fam-balances.ts --dry-run=false"
+        "import-historic-fam-balances:prod": "tsx migrations/import-historic-fam-balances.ts --dry-run=false",
+        "import-historic-transactions": "tsx migrations/import-historic-transactions.ts",
+        "import-historic-transactions:prod": "tsx migrations/import-historic-transactions.ts --dry-run=false"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.38.0",
