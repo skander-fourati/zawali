@@ -1,46 +1,47 @@
 name: Build and Release Desktop App
 
-# Build on PRs (for testing) and main pushes (for potential releases)
+# Trigger build when you push to main branch or create a tag
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
-  # Manual releases via tags
-  push:
-    tags: [ 'v*' ]
 
 jobs:
   build-mac:
     runs-on: macos-latest
     
     steps:
+      # Download your code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
+      # Install dependencies
       - name: Install dependencies
         run: npm ci
 
+      # Build and package the app
       - name: Build Electron app
         run: npm run electron:build:mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Always upload build artifacts (even if later steps fail)
+      # Upload the .dmg file as an artifact (for manual download)
       - name: Upload build artifacts
-        if: always()  # This ensures artifacts are uploaded even if build has issues
         uses: actions/upload-artifact@v4
         with:
-          name: zawali-finance-mac-${{ github.sha }}
+          name: zawali-finance-mac
           path: dist-electron/*.dmg
 
-      # Only create releases when you push a version tag
+      # If this is a tagged release, create a GitHub release
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
@@ -48,4 +49,17 @@ jobs:
           files: dist-electron/*.dmg
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # If this is a push to main (not a tag), create a draft release
+      - name: Create Draft Release
+        if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0-dev-${{ github.sha }}
+          name: Development Build ${{ github.sha }}
+          files: dist-electron/*.dmg
+          draft: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
