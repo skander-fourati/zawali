@@ -46,6 +46,7 @@ jobs:
         with:
           files: |
             dist-electron/*.dmg
+            dist-electron/*.zip
             dist-electron/*.blockmap
             dist-electron/latest-mac.yml
           generate_release_notes: true
