@@ -75,6 +75,7 @@ export interface FamilyMember {
   updated_at?: string;
 }
 
+// FIXED: Made all calculated fields required with default values
 export interface Investment {
   id: string;
   user_id: string;
@@ -82,14 +83,14 @@ export interface Investment {
   investment_type: string;
   created_at?: string;
   updated_at?: string;
-  // Calculated fields from the view
-  current_market_value?: number;
-  market_value_updated_at?: string;
-  total_invested?: number;
-  transaction_count?: number;
-  // Performance calculations
-  total_return?: number;
-  return_percentage?: number;
+  // Calculated fields from the view - now required with defaults
+  current_market_value: number;
+  market_value_updated_at: string | null;
+  total_invested: number;
+  transaction_count: number;
+  // Performance calculations - now required with defaults
+  total_return: number;
+  return_percentage: number;
 }
 
 export interface InvestmentMarketValue {
@@ -125,6 +126,56 @@ export function useTransactions() {
       fetchData();
     }
   }, [user]);
+
+  // FIXED: Helper function to calculate investment metrics from transactions
+  const calculateInvestmentMetrics = (
+    investmentId: string,
+    transactions: Transaction[],
+    marketValues: InvestmentMarketValue[],
+  ) => {
+    // Get all investment transactions for this specific investment
+    const investmentTransactions = transactions.filter(
+      (t) =>
+        t.investment_id === investmentId && t.category?.name === "Investment",
+    );
+
+    // Calculate total invested (sum of all investment transactions for this investment)
+    const total_invested = investmentTransactions.reduce((sum, t) => {
+      const amount = t.amount_gbp || 0;
+      if (amount > 0) {
+        // Positive amounts are money going into investments
+        return sum + amount;
+      } else {
+        // Negative amounts are withdrawals - subtract from total invested
+        return sum - Math.abs(amount);
+      }
+    }, 0);
+
+    // Get current market value (from market_values table or 0)
+    const latestMarketValue = marketValues
+      .filter((mv) => mv.investment_id === investmentId)
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      )[0];
+
+    const current_market_value = latestMarketValue?.market_value || 0;
+    const market_value_updated_at = latestMarketValue?.updated_at || null;
+
+    // Calculate performance metrics
+    const total_return = current_market_value - total_invested;
+    const return_percentage =
+      total_invested > 0 ? (total_return / total_invested) * 100 : 0;
+
+    return {
+      current_market_value,
+      market_value_updated_at,
+      total_invested,
+      transaction_count: investmentTransactions.length,
+      total_return,
+      return_percentage,
+    };
+  };
 
   const fetchData = async () => {
     try {
@@ -194,13 +245,27 @@ export function useTransactions() {
         );
       }
 
-      setTransactions((transactionsData || []) as unknown as Transaction[]);
+      // FIXED: Get market values for calculations
+      const { data: marketValuesData, error: marketValuesError } =
+        await supabase
+          .from("investment_market_values")
+          .select("*")
+          .order("updated_at", { ascending: false });
+
+      if (marketValuesError) {
+        console.log("Error fetching market values:", marketValuesError);
+      }
+
+      const transactions = (transactionsData || []) as unknown as Transaction[];
+      const marketValues = (marketValuesData || []) as InvestmentMarketValue[];
+
+      setTransactions(transactions);
       setCategories((categoriesData || []) as Category[]);
       setAccounts((accountsData || []) as Account[]);
       setTrips((tripsData || []) as Trip[]);
       setFamilyMembers((familyMembersData || []) as unknown as FamilyMember[]);
 
-      // Fetch investments with summary data (temporarily simplified)
+      // FIXED: Fetch investments with calculated metrics
       try {
         const { data: investmentsData, error: investmentsError } =
           await supabase
@@ -216,17 +281,18 @@ export function useTransactions() {
           );
         }
 
-        // Simple investments array for now
-        const processedInvestments = (investmentsData || []).map(
-          (inv: any) => ({
+        // FIXED: Calculate proper metrics for each investment
+        const processedInvestments = (investmentsData || []).map((inv: any) => {
+          const metrics = calculateInvestmentMetrics(
+            inv.id,
+            transactions,
+            marketValues,
+          );
+          return {
             ...inv,
-            total_invested: 0, // TODO: Calculate from transactions
-            current_market_value: 0, // TODO: Get from market_values table
-            total_return: 0,
-            return_percentage: 0,
-            transaction_count: 0,
-          }),
-        );
+            ...metrics, // Spread the calculated metrics
+          };
+        });
 
         setInvestments(processedInvestments as Investment[]);
       } catch (investmentError) {
@@ -608,12 +674,13 @@ export function useTransactions() {
   // Portfolio-specific functions
   const getPortfolioSummary = () => {
     const totalPortfolioValue = investments.reduce(
-      (sum, inv) => sum + (inv.current_market_value || 0),
+      (sum, inv) => sum + inv.current_market_value,
       0,
     );
 
+    // FIXED: Use same logic as chartCalculations.getTotalInvestments for consistency
     const totalInvested = investments.reduce(
-      (sum, inv) => sum + Math.abs(inv.total_invested || 0),
+      (sum, inv) => sum + inv.total_invested, // Already calculated as net invested amount
       0,
     );
 
@@ -621,8 +688,13 @@ export function useTransactions() {
     const returnPercentage =
       totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
 
-    // Find last updated date (placeholder)
-    const lastUpdated = null; // TODO: Get from market value updates
+    // Find last updated date from market values
+    const lastUpdated =
+      investments
+        .map((inv) => inv.market_value_updated_at)
+        .filter((date) => date !== null)
+        .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0] ||
+      null;
 
     return {
       totalPortfolioValue,
@@ -640,7 +712,7 @@ export function useTransactions() {
       .filter((inv) => shouldIncludeInPortfolioBreakdown(inv.investment_type))
       .reduce(
         (acc, inv) => {
-          const marketValue = inv.current_market_value || 0;
+          const marketValue = inv.current_market_value;
           if (marketValue > 0) {
             if (!acc[inv.investment_type]) {
               acc[inv.investment_type] = { amount: 0, count: 0 };

@@ -89,6 +89,22 @@ export function AddEditTransactionModal({
   const isFamilyTransfer = formData.category_id === familyTransferCategory?.id;
   const isInvestment = formData.category_id === investmentCategory?.id;
 
+  // Filter accounts based on category selection
+  const filteredAccounts = React.useMemo(() => {
+    if (isInvestment) {
+      // Only show investment accounts when investment category is selected
+      return accounts.filter(
+        (account: any) =>
+          account.account_type === "investment" ||
+          account.account_type === "brokerage" ||
+          account.name?.toLowerCase().includes("investment") ||
+          account.name?.toLowerCase().includes("brokerage"),
+      );
+    }
+    // For all other categories, show all accounts (including investment accounts)
+    return accounts;
+  }, [accounts, isInvestment]);
+
   // Fetch family members and investments when modal opens
   useEffect(() => {
     if (isOpen && user) {
@@ -116,23 +132,22 @@ export function AddEditTransactionModal({
 
   const fetchInvestments = async () => {
     try {
-      // Try to fetch investments, but handle the case where the table doesn't exist
-      const { data, error } = await supabase.rpc("select", {
-        query:
-          "SELECT id, ticker, investment_type FROM investments WHERE user_id = $1 ORDER BY ticker",
-        params: [user?.id],
-      });
+      // Fixed: Use direct query instead of RPC
+      const { data, error } = await supabase
+        .from("investments")
+        .select("id, ticker, investment_type")
+        .eq("user_id", user?.id)
+        .order("ticker");
 
       if (error) {
-        // If RPC doesn't work or table doesn't exist, just set empty array
-        console.log("Investments table not found or error:", error);
+        console.log("Error fetching investments:", error);
         setInvestments([]);
         return;
       }
 
       setInvestments((data || []) as Investment[]);
     } catch (error) {
-      console.log("Error fetching investments (table may not exist):", error);
+      console.log("Error fetching investments:", error);
       setInvestments([]);
     }
   };
@@ -222,6 +237,14 @@ export function AddEditTransactionModal({
         ticker: "",
         investment_type: "",
         investment_id: "",
+      }));
+    }
+
+    // Reset account selection when switching to/from investment category
+    if (field === "category_id") {
+      setFormData((prev) => ({
+        ...prev,
+        account_id: "none",
       }));
     }
 
@@ -320,15 +343,24 @@ export function AddEditTransactionModal({
       // Create or get investment record if this is an investment transaction
       if (isInvestment) {
         if (!investmentId) {
-          // For now, show a warning that investment feature isn't fully ready
-          toast({
-            title: "Investment Feature Coming Soon",
-            description:
-              "Investment tracking is being set up. Please run the database schema first.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
+          // Create new investment record
+          const { data: investmentData, error: investmentError } =
+            await supabase
+              .from("investments")
+              .insert({
+                user_id: user.id,
+                ticker: formData.ticker.toUpperCase(),
+                investment_type: formData.investment_type,
+              })
+              .select()
+              .single();
+
+          if (investmentError) {
+            console.error("Error creating investment:", investmentError);
+            throw new Error("Failed to create investment record");
+          }
+
+          investmentId = investmentData.id;
         }
       }
 
@@ -353,21 +385,19 @@ export function AddEditTransactionModal({
             : formData.family_member_id || null,
         encord_expensable: formData.encord_expensable,
         transaction_type: formData.transaction_type,
-        // Only include investment_id if the schema has been created
+        // Include investment_id if this is an investment
         ...(investmentId && { investment_id: investmentId }),
       };
 
       let error;
 
       if (transaction) {
-        // @ts-ignore
         const { error: updateError } = await supabase
           .from("transactions")
           .update(transactionData)
           .eq("id", transaction.id);
         error = updateError;
       } else {
-        // @ts-ignore
         const { error: insertError } = await supabase
           .from("transactions")
           .insert(transactionData);
@@ -537,19 +567,14 @@ export function AddEditTransactionModal({
                 </Select>
               </div>
 
-              <div className="col-span-2">
-                <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded">
-                  <strong>Note:</strong> Investment tracking requires database
-                  setup. Please run the SQL schema first to enable full
-                  investment features.
-                </div>
-                {investments.length > 0 && (
-                  <p className="text-sm text-muted-foreground mt-2">
+              {investments.length > 0 && (
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">
                     Existing tickers:{" "}
                     {investments.map((inv) => inv.ticker).join(", ")}
                   </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -590,9 +615,16 @@ export function AddEditTransactionModal({
             </div>
           )}
 
-          {/* Account */}
+          {/* Account - Filtered based on category */}
           <div className="space-y-2">
-            <Label htmlFor="account">Account</Label>
+            <Label htmlFor="account">
+              Account
+              {isInvestment && (
+                <span className="text-sm text-muted-foreground ml-2">
+                  (Investment accounts only)
+                </span>
+              )}
+            </Label>
             <Select
               value={formData.account_id}
               onValueChange={(value) =>
@@ -604,13 +636,24 @@ export function AddEditTransactionModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No Account</SelectItem>
-                {accounts.map((account) => (
+                {filteredAccounts.map((account: any) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.name}
+                    {isInvestment && account.account_type && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({account.account_type})
+                      </span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {isInvestment && filteredAccounts.length === 0 && (
+              <p className="text-sm text-amber-600">
+                No investment accounts found. You may need to add investment
+                accounts or update existing accounts' types.
+              </p>
+            )}
           </div>
 
           {/* Trip (if available) */}
