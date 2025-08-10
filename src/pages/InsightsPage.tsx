@@ -261,6 +261,40 @@ const InsightsPage = () => {
                 <ExpensesByCategory data={expensesByCategory} />
                 <ExpensesByTrip data={expensesByTrip} />
               </div>
+
+              {/* Zawali Expense Wisdom */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <span>🧠</span>
+                    <span>Zawali Expense Wisdom</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                      <span className="text-xl">🇹🇳</span>
+                      <div>
+                        <h4 className="font-medium text-foreground">The Tunisian Truth</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Fun fact: "Zawali" means "brokie" in Tunisian. So basically, this whole app is just 
+                          embracing your financial destiny with Mediterranean flair.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                      <span className="text-xl">🤷</span>
+                      <div>
+                        <h4 className="font-medium text-foreground">Zawali Life Philosophy</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Why worry about being zawali when you can track it in style? At least now you have 
+                          beautiful charts to show exactly how broke you are.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Income & Savings Tab */}
