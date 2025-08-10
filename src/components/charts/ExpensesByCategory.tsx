@@ -8,6 +8,8 @@ interface ExpensesByCategoryProps {
     category: string;
     amount: number;
     color: string; // This will now come from the database
+    previousAmount?: number; // For percentage change calculation
+    percentageChange?: number; // Calculated percentage change
   }>;
 }
 
@@ -36,6 +38,20 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
     }).format(value);
   };
 
+  const formatPercentageChange = (change: number) => {
+    const absChange = Math.abs(change);
+    const sign = change >= 0 ? '+' : '-';
+    return `${sign}${absChange.toFixed(1)}%`;
+  };
+
+  // Get current month name for title
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const monthName = lastMonth.toLocaleDateString('en-US', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
   // EXPLANATION: Process the data for the pie chart
   // Now we use the color from the database, or fall back to our palette if no color is set
   const processedData = data
@@ -57,27 +73,40 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
     return config;
   }, {} as any);
 
-  // EXPLANATION: Custom tooltip that shows the category with its color
+  // EXPLANATION: Custom tooltip using the same beautiful styling as other charts, with percentage change
   const customTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
     
     const data = payload[0].payload;
     
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm max-w-xs">
-        <div className="flex items-center justify-between">
+      <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs">
+        <p className="font-semibold text-foreground mb-2">{data.category}</p>
+        <div className="flex items-center justify-between mb-1">
           <div className="flex items-center">
-            {/* Color indicator circle - uses the resolved color */}
             <div 
               className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
               style={{ backgroundColor: data.finalColor }}
             />
-            <span className="text-gray-700">{data.category}:</span>
+            <span className="text-muted-foreground">Amount:</span>
           </div>
-          <span className="font-medium text-gray-900 ml-2">
+          <span className="font-medium text-foreground ml-2">
             {formatCurrency(data.amount)}
           </span>
         </div>
+        {/* Show percentage change if available */}
+        {data.percentageChange !== undefined && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <span className="text-muted-foreground text-xs">vs Previous Month:</span>
+            <span className={`font-medium text-xs ml-2 ${
+              data.percentageChange >= 0 
+                ? 'text-destructive' // Red for increases (bad for expenses)
+                : 'text-success'    // Green for decreases (good for expenses)
+            }`}>
+              {formatPercentageChange(data.percentageChange)}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -85,13 +114,15 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
   // If no data, show empty state
   if (processedData.length === 0) {
     return (
-      <Card className="bg-gradient-card shadow-soft border-0">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Monthly Expenses by Category</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">
+            {monthName} Expenses by Category
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[400px] flex items-center justify-center text-muted-foreground">
-            <p>No expense data available</p>
+            <p>No expense data available for {monthName}</p>
           </div>
         </CardContent>
       </Card>
@@ -99,9 +130,11 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
   }
 
   return (
-    <Card className="bg-gradient-card shadow-soft border-0">
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Monthly Expenses by Category</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">
+          {monthName} Expenses by Category
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[400px]">
@@ -117,7 +150,7 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
                 label={({ category, percent }) => {
                   return percent >= 0.05 ? `${category} (${(percent * 100).toFixed(0)}%)` : null;
                 }}
-                labelLine={true} 
+                labelLine={true}
               >
                 {/* EXPLANATION: Each slice gets its resolved color (database color or fallback) */}
                 {processedData.map((entry, index) => (

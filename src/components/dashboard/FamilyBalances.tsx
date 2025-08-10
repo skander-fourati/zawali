@@ -154,7 +154,7 @@ export function FamilyBalances({ balances, recentTransactions }: FamilyBalancesP
         {/* Recent Family Transactions */}
         {recentTransactions.length > 0 && (
           <div className="border-t pt-6">
-            <h4 className="font-semibold text-base text-gray-900 flex items-center gap-2 mb-4">
+            <h4 className="font-semibold text-base text-foreground flex items-center gap-2 mb-4">
               <Calendar className="h-5 w-5" />
               Recent Family Transactions
             </h4>

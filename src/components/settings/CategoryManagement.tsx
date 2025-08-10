@@ -259,29 +259,29 @@ const CategoryManagement: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-4">Loading categories...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-4 text-foreground">Loading categories...</p>
       </div>
     );
   }
 
   return (
-    <Card>
+    <Card className="bg-card border-border">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Tag className="h-5 w-5" />
           Transaction Categories ({categories.length})
         </CardTitle>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90">
               <Plus className="h-4 w-4" />
               Add Category
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
+              <DialogTitle className="text-foreground">Add New Category</DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
               <form onSubmit={addForm.handleSubmit(onAddCategory)} className="space-y-4">
@@ -291,9 +291,9 @@ const CategoryManagement: React.FC = () => {
                   rules={{ required: "Category name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category Name</FormLabel>
+                      <FormLabel className="text-foreground">Category Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Groceries, Entertainment" {...field} />
+                        <Input placeholder="e.g., Groceries, Entertainment" {...field} className="bg-input border-border" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -304,27 +304,27 @@ const CategoryManagement: React.FC = () => {
                   name="color"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Color</FormLabel>
+                      <FormLabel className="text-foreground">Color</FormLabel>
                       <FormControl>
                         <div className="space-y-3">
                           <div className="flex items-center gap-4">
                             <Input 
                               type="color" 
                               {...field} 
-                              className="w-20 h-12 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors" 
+                              className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors" 
                             />
                             <div className="flex-1">
-                              <p className="text-sm font-medium">Click to choose a color</p>
+                              <p className="text-sm font-medium text-foreground">Click to choose a color</p>
                               <p className="text-xs text-muted-foreground">Selected: {field.value}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 p-3 bg-gray-50 border rounded-lg">
+                          <div className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg">
                             <div 
-                              className="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                              className="w-8 h-8 rounded-full border-2 border-background shadow-sm"
                               style={{ backgroundColor: field.value }}
                             />
                             <div>
-                              <p className="text-sm font-medium">Preview</p>
+                              <p className="text-sm font-medium text-foreground">Preview</p>
                               <p className="text-xs text-muted-foreground">How your category will appear</p>
                             </div>
                           </div>
@@ -335,8 +335,8 @@ const CategoryManagement: React.FC = () => {
                   )}
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">Add Category</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Add Category</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="border-border hover:bg-muted">
                     Cancel
                   </Button>
                 </div>
@@ -354,17 +354,17 @@ const CategoryManagement: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
+              <div key={category.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors">
                 <div className="flex items-center gap-3">
                   <div 
-                    className="w-6 h-6 rounded-full border-2 border-gray-200"
+                    className="w-6 h-6 rounded-full border-2 border-border"
                     style={{ backgroundColor: category.color || '#gray' }}
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{category.name}</span>
+                      <span className="font-medium text-foreground">{category.name}</span>
                       {isProtectedCategory(category.name) && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs bg-secondary/20 text-secondary">
                           <Shield className="w-3 h-3 mr-1" />
                           Protected
                         </Badge>
@@ -381,6 +381,7 @@ const CategoryManagement: React.FC = () => {
                     variant="ghost"
                     onClick={() => openEditDialog(category)}
                     disabled={isProtectedCategory(category.name)}
+                    className="hover:bg-muted"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -389,7 +390,7 @@ const CategoryManagement: React.FC = () => {
                     variant="ghost"
                     onClick={() => openDeleteDialog(category)}
                     disabled={isProtectedCategory(category.name)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-destructive hover:text-destructive hover:bg-muted"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -402,9 +403,9 @@ const CategoryManagement: React.FC = () => {
 
       {/* Edit Category Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
+            <DialogTitle className="text-foreground">Edit Category</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditCategory)} className="space-y-4">
@@ -414,9 +415,9 @@ const CategoryManagement: React.FC = () => {
                 rules={{ required: "Category name is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category Name</FormLabel>
+                    <FormLabel className="text-foreground">Category Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} className="bg-input border-border" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -427,27 +428,27 @@ const CategoryManagement: React.FC = () => {
                 name="color"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Color</FormLabel>
+                    <FormLabel className="text-foreground">Color</FormLabel>
                     <FormControl>
                       <div className="space-y-3">
                         <div className="flex items-center gap-4">
                           <Input 
                             type="color" 
                             {...field} 
-                            className="w-20 h-12 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors" 
+                            className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors" 
                           />
                           <div className="flex-1">
-                            <p className="text-sm font-medium">Click to choose a color</p>
+                            <p className="text-sm font-medium text-foreground">Click to choose a color</p>
                             <p className="text-xs text-muted-foreground">Selected: {field.value}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 border rounded-lg">
+                        <div className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg">
                           <div 
-                            className="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                            className="w-8 h-8 rounded-full border-2 border-background shadow-sm"
                             style={{ backgroundColor: field.value }}
                           />
                           <div>
-                            <p className="text-sm font-medium">Preview</p>
+                            <p className="text-sm font-medium text-foreground">Preview</p>
                             <p className="text-xs text-muted-foreground">How your category will appear</p>
                           </div>
                         </div>
@@ -458,8 +459,8 @@ const CategoryManagement: React.FC = () => {
                 )}
               />
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">Update Category</Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Update Category</Button>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-border hover:bg-muted">
                   Cancel
                 </Button>
               </div>
@@ -470,25 +471,25 @@ const CategoryManagement: React.FC = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Delete Category</DialogTitle>
+            <DialogTitle className="text-foreground">Delete Category</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>
+            <p className="text-foreground">
               Are you sure you want to delete the category <strong>"{deletingCategory?.name}"</strong>?
             </p>
             {deletingCategory && deletingCategory.transaction_count > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+                <p className="text-sm text-warning">
                   <strong>Warning:</strong> This category is used by {deletingCategory.transaction_count} transactions.
                 </p>
-                <p className="text-sm text-yellow-700 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   You can either reassign these transactions to another category or leave them uncategorized.
                 </p>
                 <div className="mt-3">
                   <Select value={reassignToCategoryId || 'null'} onValueChange={setReassignToCategoryId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-input border-border">
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -510,11 +511,11 @@ const CategoryManagement: React.FC = () => {
               <Button 
                 variant="destructive" 
                 onClick={onDeleteCategory}
-                className="flex-1"
+                className="flex-1 bg-destructive hover:bg-destructive/90"
               >
                 Delete Category
               </Button>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-border hover:bg-muted">
                 Cancel
               </Button>
             </div>

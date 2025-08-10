@@ -78,43 +78,57 @@ export const chartCalculations = {
    * @param {Record<string, string>} categoryColors 
    * @returns {Array} - Category expense data with colors
    */
-  getExpensesByCategory: (transactions, categoryColors = {}) => {
+  getLastMonthExpensesByCategory: (transactions, categoryColors = {}) => {
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    // Filter for current month expenses
-    const currentMonthTransactions = getExpenseFilteredTransactions(transactions).filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === currentMonth && 
-             transactionDate.getFullYear() === currentYear;
-    });
-
-    const categoryData = {};
-
-    currentMonthTransactions.forEach(transaction => {
-      const categoryName = transaction.category?.name || 'Uncategorized';
-      const amount = transaction.amount_gbp || 0;
-      
-      if (!categoryData[categoryName]) {
-        categoryData[categoryName] = { expenses: 0, refunds: 0 };
-      }
-      
-      if (amount < 0) {
-        categoryData[categoryName].expenses += Math.abs(amount);
-      } else if (amount > 0) {
-        categoryData[categoryName].refunds += amount;
-      }
-    });
     
-    // Calculate net amounts
-    const categoryTotals = {};
-    Object.entries(categoryData).forEach(([category, data]) => {
-      const netAmount = data.expenses - data.refunds;
-      if (netAmount > 0) {
-        categoryTotals[category] = netAmount;
-      }
-    });
+    // Calculate last month
+    const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    
+    // Calculate month before last (for comparison)
+    const monthBeforeLast = lastMonth === 0 ? 11 : lastMonth - 1;
+    const monthBeforeLastYear = lastMonth === 0 ? lastMonthYear - 1 : lastMonthYear;
+
+    // Helper function to get category data for a specific month
+    const getCategoryDataForMonth = (month, year) => {
+      const monthTransactions = getExpenseFilteredTransactions(transactions).filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === month && 
+               transactionDate.getFullYear() === year;
+      });
+
+      const categoryData = {};
+
+      monthTransactions.forEach(transaction => {
+        const categoryName = transaction.category?.name || 'Uncategorized';
+        const amount = transaction.amount_gbp || 0;
+        
+        if (!categoryData[categoryName]) {
+          categoryData[categoryName] = { expenses: 0, refunds: 0 };
+        }
+        
+        if (amount < 0) {
+          categoryData[categoryName].expenses += Math.abs(amount);
+        } else if (amount > 0) {
+          categoryData[categoryName].refunds += amount;
+        }
+      });
+      
+      // Calculate net amounts
+      const categoryTotals = {};
+      Object.entries(categoryData).forEach(([category, data]) => {
+        const netAmount = data.expenses - data.refunds;
+        if (netAmount > 0) {
+          categoryTotals[category] = netAmount;
+        }
+      });
+
+      return categoryTotals;
+    };
+
+    // Get data for both months
+    const lastMonthData = getCategoryDataForMonth(lastMonth, lastMonthYear);
+    const monthBeforeLastData = getCategoryDataForMonth(monthBeforeLast, monthBeforeLastYear);
 
     // Fallback colors
     const colors = [
@@ -126,12 +140,27 @@ export const chartCalculations = {
       'hsl(180, 70%, 50%)'
     ];
     
-    return Object.entries(categoryTotals)
-      .map(([category, amount], index) => ({
-        category,
-        amount,
-        color: categoryColors[category] || colors[index % colors.length]
-      }))
+    return Object.entries(lastMonthData)
+      .map(([category, amount], index) => {
+        // Calculate percentage change
+        const previousAmount = monthBeforeLastData[category] || 0;
+        let percentageChange = undefined;
+        
+        if (previousAmount > 0) {
+          percentageChange = ((amount - previousAmount) / previousAmount) * 100;
+        } else if (amount > 0) {
+          // If no previous amount but current amount exists, it's a new expense (100% increase)
+          percentageChange = 100;
+        }
+
+        return {
+          category,
+          amount,
+          previousAmount,
+          percentageChange,
+          color: categoryColors[category] || colors[index % colors.length]
+        };
+      })
       .sort((a, b) => b.amount - a.amount);
   },
 

@@ -301,29 +301,29 @@ const TripManagement: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-4">Loading trips...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-4 text-foreground">Loading trips...</p>
       </div>
     );
   }
 
   return (
-    <Card>
+    <Card className="bg-card border-border">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <MapPin className="h-5 w-5" />
           Travel & Trips ({trips.length})
         </CardTitle>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2 bg-primary hover:bg-primary/90">
               <Plus className="h-4 w-4" />
               Add Trip
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Add New Trip</DialogTitle>
+              <DialogTitle className="text-foreground">Add New Trip</DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
               <form onSubmit={addForm.handleSubmit(onAddTrip)} className="space-y-4">
@@ -333,9 +333,9 @@ const TripManagement: React.FC = () => {
                   rules={{ required: "Trip name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Trip Name</FormLabel>
+                      <FormLabel className="text-foreground">Trip Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Summer Vacation, Business Trip" {...field} />
+                        <Input placeholder="e.g., Summer Vacation, Business Trip" {...field} className="bg-input border-border" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -347,9 +347,9 @@ const TripManagement: React.FC = () => {
                     name="start_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Date</FormLabel>
+                        <FormLabel className="text-foreground">Start Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="date" {...field} className="bg-input border-border" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -360,9 +360,9 @@ const TripManagement: React.FC = () => {
                     name="end_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>End Date</FormLabel>
+                        <FormLabel className="text-foreground">End Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="date" {...field} className="bg-input border-border" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -370,8 +370,8 @@ const TripManagement: React.FC = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">Add Trip</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Add Trip</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="border-border hover:bg-muted">
                     Cancel
                   </Button>
                 </div>
@@ -389,14 +389,14 @@ const TripManagement: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {trips.map((trip) => (
-              <div key={trip.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
+              <div key={trip.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                    <MapPin className="w-3 h-3 text-blue-600" />
+                  <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
+                    <MapPin className="w-3 h-3 text-accent" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{trip.name}</span>
+                      <span className="font-medium text-foreground">{trip.name}</span>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div>{formatDateRange(trip.start_date, trip.end_date)}</div>
@@ -409,6 +409,7 @@ const TripManagement: React.FC = () => {
                     size="sm"
                     variant="ghost"
                     onClick={() => openEditDialog(trip)}
+                    className="hover:bg-muted"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -416,7 +417,7 @@ const TripManagement: React.FC = () => {
                     size="sm"
                     variant="ghost"
                     onClick={() => openDeleteDialog(trip)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-destructive hover:text-destructive hover:bg-muted"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -429,9 +430,9 @@ const TripManagement: React.FC = () => {
 
       {/* Edit Trip Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Edit Trip</DialogTitle>
+            <DialogTitle className="text-foreground">Edit Trip</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditTrip)} className="space-y-4">
@@ -441,9 +442,9 @@ const TripManagement: React.FC = () => {
                 rules={{ required: "Trip name is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Trip Name</FormLabel>
+                    <FormLabel className="text-foreground">Trip Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} className="bg-input border-border" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -455,9 +456,9 @@ const TripManagement: React.FC = () => {
                   name="start_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Date</FormLabel>
+                      <FormLabel className="text-foreground">Start Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} className="bg-input border-border" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -468,9 +469,9 @@ const TripManagement: React.FC = () => {
                   name="end_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>End Date</FormLabel>
+                      <FormLabel className="text-foreground">End Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" {...field} className="bg-input border-border" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -478,8 +479,8 @@ const TripManagement: React.FC = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">Update Trip</Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Update Trip</Button>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-border hover:bg-muted">
                   Cancel
                 </Button>
               </div>
@@ -490,25 +491,25 @@ const TripManagement: React.FC = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Delete Trip</DialogTitle>
+            <DialogTitle className="text-foreground">Delete Trip</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p>
+            <p className="text-foreground">
               Are you sure you want to delete the trip <strong>"{deletingTrip?.name}"</strong>?
             </p>
             {deletingTrip && deletingTrip.transaction_count > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800">
+              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+                <p className="text-sm text-warning">
                   <strong>Warning:</strong> This trip is used by {deletingTrip.transaction_count} transactions.
                 </p>
-                <p className="text-sm text-yellow-700 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   You can either reassign these transactions to another trip or leave them without a trip.
                 </p>
                 <div className="mt-3">
                   <Select value={reassignToTripId || 'null'} onValueChange={setReassignToTripId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-input border-border">
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -530,11 +531,11 @@ const TripManagement: React.FC = () => {
               <Button 
                 variant="destructive" 
                 onClick={onDeleteTrip}
-                className="flex-1"
+                className="flex-1 bg-destructive hover:bg-destructive/90"
               >
                 Delete Trip
               </Button>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-border hover:bg-muted">
                 Cancel
               </Button>
             </div>

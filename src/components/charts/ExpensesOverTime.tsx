@@ -100,7 +100,7 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
     return monthEntry;
   });
 
-  // EXPLANATION: Custom tooltip that shows categories with their resolved colors
+  // EXPLANATION: Custom tooltip using dark theme but keeping the nice styling
   const customTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
     
@@ -112,8 +112,8 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
     if (sortedPayload.length === 0) return null;
     
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm max-w-xs">
-        <p className="font-semibold text-gray-900 mb-2">{label}</p>
+      <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs">
+        <p className="font-semibold text-foreground mb-2">{label}</p>
         {sortedPayload.map((p: any, index: number) => {
           // Get the resolved color for this category
           const categoryColor = chartConfig[p.dataKey]?.color || fallbackColors[0];
@@ -125,9 +125,9 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
                   className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
                   style={{ backgroundColor: categoryColor }}
                 />
-                <span className="text-gray-700">{p.dataKey}:</span>
+                <span className="text-muted-foreground">{p.dataKey}:</span>
               </div>
-              <span className="font-medium text-gray-900 ml-2">
+              <span className="font-medium text-foreground ml-2">
                 {formatCurrency(p.value)}
               </span>
             </div>
@@ -140,9 +140,9 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
   // If no data, show empty state
   if (processedData.length === 0 || categoryArray.length === 0) {
     return (
-      <Card className="bg-gradient-card shadow-soft border-0">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Expenses Over Last 12 Months by Category</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">Expenses Over Last 12 Months by Category</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[400px] flex items-center justify-center text-muted-foreground">
@@ -154,9 +154,9 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
   }
 
   return (
-    <Card className="bg-gradient-card shadow-soft border-0">
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Expenses Over Last 12 Months by Category</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Expenses Over Last 12 Months by Category</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex justify-center">
@@ -168,10 +168,10 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
               >
                 <XAxis 
                   dataKey="month" 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={formatCurrency}
                 />
                 
@@ -197,7 +197,7 @@ export function ExpensesOverTime({ data, categoryColors = {} }: ExpensesOverTime
                           position="top"
                           formatter={(value: number) => value > 0 ? `£${Math.round(value).toLocaleString('en-GB')}` : ''}
                           fontSize={12}
-                          fill="#666"
+                          fill="hsl(var(--muted-foreground))"
                         />
                       )}
                     </Bar>
