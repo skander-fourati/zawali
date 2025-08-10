@@ -62,64 +62,20 @@ autoUpdater.on('download-progress', (progressObj) => {
 autoUpdater.on('update-downloaded', (info) => {
   console.log('✅ Auto-updater: Update downloaded!', info.version);
   
-  // Show dialog asking user if they want to install
-  showUpdateReadyDialog(info.version);
+  // Skip auto-install entirely, show download dialog immediately
+  showDownloadDialog(info.version);
 });
 
-// Show dialog when update is ready to install
-function showUpdateReadyDialog(version) {
+// Show download dialog when update is ready
+function showDownloadDialog(version) {
   if (!mainWindow) return;
   
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type: 'info',
-    title: 'Update Ready',
-    message: `Zawali ${version} is ready to install!`,
-    detail: 'The update has been downloaded. Would you like to restart and install it now?',
-    buttons: ['Install Now', 'Later'],
-    defaultId: 0
-  });
-
-  if (choice === 0) {
-    console.log('🔄 Auto-updater: User chose to install update now');
-    attemptAutoInstall(version);
-  } else {
-    console.log('⏰ Auto-updater: User chose to install update later');
-  }
-}
-
-// Attempt auto-install with timeout fallback
-function attemptAutoInstall(version) {
-  console.log('🔧 Auto-updater: Attempting automatic installation...');
-  
-  // Set a timeout to detect if quitAndInstall() fails silently
-  const timeoutId = setTimeout(() => {
-    console.log('⏰ Auto-updater: Auto-install timed out, showing manual option');
-    showSimpleUpdateDialog(version);
-  }, 5000); // 5 second timeout
-
-  try {
-    // Try auto-install first - sometimes works even with code signing issues
-    autoUpdater.quitAndInstall();
-    
-    // If we get here, clear the timeout (app should be restarting)
-    clearTimeout(timeoutId);
-  } catch (error) {
-    console.error('❌ Auto-updater: Auto-install failed:', error.message);
-    clearTimeout(timeoutId);
-    showSimpleUpdateDialog(version);
-  }
-}
-
-// Show simple update dialog when auto-install fails  
-function showSimpleUpdateDialog(version) {
-  if (!mainWindow) return;
-  
-  const choice = dialog.showMessageBoxSync(mainWindow, {
-    type: 'info',
-    title: 'Download Required',
-    message: `Please download Zawali ${version} manually`,
-    detail: `The automatic update couldn't install. Click "Download" to get the latest version from GitHub.`,
-    buttons: ['Download Update', 'Maybe Later'],
+    title: 'Update Available',
+    message: `Zawali ${version} is ready to download!`,
+    detail: 'A new version is available with the latest features and fixes. Click "Download" to get the update.',
+    buttons: ['Download Now', 'Later'],
     defaultId: 0
   });
 
@@ -127,6 +83,8 @@ function showSimpleUpdateDialog(version) {
     console.log('🌐 Auto-updater: Opening download link for user');
     // Open the direct download link for the DMG
     shell.openExternal(`https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-${version}-universal.dmg`);
+  } else {
+    console.log('⏰ Auto-updater: User chose to download later');
   }
 }
 
