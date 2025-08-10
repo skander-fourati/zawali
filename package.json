@@ -3,7 +3,7 @@
   "author": "Skander Fourati",
   "description": "An app for us brokies",
   "private": true,
-  "version": "1.0.10",
+  "version": "1.0.11",
   "main": "electron/main.cjs",
   "type": "module",
   "homepage": "./",
