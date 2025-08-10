@@ -6,17 +6,11 @@ import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { FamilyBalances } from "@/components/dashboard/FamilyBalances";
 import { AddEditTransactionModal } from "@/components/transactions/AddEditTransactionModal";
-import { ExpensesByCategory } from "@/components/charts/ExpensesByCategory";
-import { ExpensesOverTime } from "@/components/charts/ExpensesOverTime";
-import { IncomeOverTime } from "@/components/charts/IncomeOverTime";
-import { SavingsOverTime } from "@/components/charts/SavingsOverTime";
-import { InvestmentsOverTime } from "@/components/charts/InvestmentsOverTime";
-import { ExpensesByTrip } from "@/components/charts/ExpensesByTrip";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { chartCalculations } from "@/lib/chartCalculations"; // NEW: Import centralized calculations
+import { chartCalculations } from "@/lib/chartCalculations";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -28,14 +22,13 @@ const Index = () => {
     accounts,
     trips,
     loading: transactionsLoading,
-    getFamilyBalances, // Keep family balances from hook for now
+    getFamilyBalances,
     refetch
   } = useTransactions();
 
   // Transaction modal state
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [categoryColors, setCategoryColors] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -44,47 +37,12 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
-  useEffect(() => {
-    if (user) {
-      fetchCategoryColors();
-    }
-  }, [user]);
-
-  const fetchCategoryColors = async () => {
-    if (!user) return;
-    
-    try {
-      const { data: categories, error } = await supabase
-        .from('categories')
-        .select('name, color')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error fetching category colors:', error);
-        return;
-      }
-
-      const colorMap = categories?.reduce((acc, category) => {
-        if (category.color) {
-          acc[category.name] = category.color;
-        }
-        return acc;
-      }, {}) || {};
-
-      setCategoryColors(colorMap);
-    } catch (error) {
-      console.error('Error fetching category colors:', error);
-    }
-  };
-
   const handleTransactionsUploaded = () => {
     setRefreshKey(prev => prev + 1);
     
     if (typeof refetch === 'function') {
       refetch();
     }
-    
-    fetchCategoryColors();
     
     toast({
       title: "Success!",
@@ -108,26 +66,19 @@ const Index = () => {
     return null;
   }
 
-  // UPDATED: Use centralized calculations
-// UPDATED: Use centralized calculations
+  // Calculate metrics using centralized calculations
   const monthlyStats = chartCalculations.getMonthlyStats(transactions);
   const lastMonthStats = chartCalculations.getLastMonthStats(transactions);
   const totalSavings = chartCalculations.getTotalSavings(transactions);
   const totalInvestments = chartCalculations.getTotalInvestments(transactions);
-  const expensesByCategory = chartCalculations.getExpensesByCategory(transactions, categoryColors);
-  const expensesOverTime = chartCalculations.getExpensesOverTime(transactions, categoryColors);
-  const incomeOverTime = chartCalculations.getIncomeOverTime(transactions);
-  const savingsOverTime = chartCalculations.getSavingsOverTime(transactions);
-  const investmentsOverTime = chartCalculations.getInvestmentsOverTime(transactions);
-  const expensesByTrip = chartCalculations.getExpensesByTrip(transactions);
   const averageIncome12Months = chartCalculations.get12MonthAverageIncome(transactions);
 
-  // Keep family balances logic from existing hook
+  // Family balances logic from existing hook
   const familyBalances = getFamilyBalances();
   const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
   const recentFamilyTransactions = transactions
     .filter(t => t.category?.id === familyTransferCategory?.id && t.family_member_id)
-    .slice(0, 5)
+    .slice(0, 10) // Increased from 5 to 10
     .map(t => ({
       id: t.id,
       date: t.date,
@@ -142,7 +93,7 @@ const Index = () => {
       }
     }));
 
-  // Recent transactions for display (using same base filtering as calculations)
+  // Recent transactions for display (increased limit)
   const recentTransactionsForDisplay = transactions
     .filter(t => 
       // Apply same base filtering as chart calculations
@@ -151,7 +102,7 @@ const Index = () => {
       t.category?.name !== 'Family Transfer' &&
       t.transaction_type !== 'transfer'
     )
-    .slice(0, 5)
+    .slice(0, 15) // Increased from 5 to 15
     .map(t => ({
       id: t.id,
       date: t.date,
@@ -181,70 +132,36 @@ const Index = () => {
             averageIncome12Months={averageIncome12Months}
           />
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <RecentTransactions 
-              key={`transactions-${refreshKey}`}
-              transactions={recentTransactionsForDisplay} 
-            />
-            <FamilyBalances 
-              balances={familyBalances}
-              recentTransactions={recentFamilyTransactions}
-            />
+          {/* Expanded Recent Transactions and Family Balances - Single Column on Large Screens */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+            <div className="xl:col-span-1">
+              <RecentTransactions 
+                key={`transactions-${refreshKey}`}
+                transactions={recentTransactionsForDisplay} 
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <FamilyBalances 
+                balances={familyBalances}
+                recentTransactions={recentFamilyTransactions}
+              />
+            </div>
           </div>
 
-          <div className="space-y-8">
-            {/* Full-width Expenses Over Time chart */}
-            <div className="w-full">
-              <ExpensesOverTime 
-                key={`expenses-time-${refreshKey}`}
-                data={expensesOverTime}
-                categoryColors={categoryColors} 
-              />
-            </div>
-
-            {/* ExpensesByCategory in 2-column layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <ExpensesByCategory 
-                key={`expenses-category-${refreshKey}`}
-                data={expensesByCategory} 
-              />
-              {/* Placeholder for symmetry */}
-              <div></div>
-            </div>
-
-            {/* Full-width ExpensesByTrip - same format as Expenses Over Time */}
-            <div className="w-full">
-              <ExpensesByTrip 
-                key={`expenses-trip-${refreshKey}`}
-                data={expensesByTrip}
-              />
-            </div>
-
-            {/* Full-width IncomeOverTime - same format as Expenses Over Time */}
-            <div className="w-full">
-              <IncomeOverTime 
-                key={`income-time-${refreshKey}`}
-                data={incomeOverTime}
-                categoryColors={categoryColors}
-              />
-            </div>
-
-            {/* Full-width SavingsOverTime - same format as Expenses Over Time */}
-            <div className="w-full">
-              <SavingsOverTime 
-                key={`savings-time-${refreshKey}`}
-                data={savingsOverTime}
-              />
-            </div>
-
-            {/* Full-width InvestmentsOverTime - same format as Expenses Over Time */}
-            <div className="w-full">
-              <InvestmentsOverTime 
-                key={`investments-time-${refreshKey}`}
-                data={investmentsOverTime}
-                categoryColors={categoryColors}
-              />
-            </div>
+          {/* Call-to-action for Insights */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Ready to dive deeper into your finances?
+            </h3>
+            <p className="text-gray-600 mb-4">
+              View detailed charts and spending insights to better understand your financial patterns.
+            </p>
+            <button
+              onClick={() => navigate('/insights')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            >
+              View Financial Insights
+            </button>
           </div>
 
           <AddEditTransactionModal
