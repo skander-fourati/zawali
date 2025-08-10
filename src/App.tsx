@@ -4,11 +4,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import TransactionsPage from "./pages/TransactionsPage";
-import ManageDataPage from "./pages/ManageDataPage"; // New import
+import ManageDataPage from "./pages/ManageDataPage";
+import InsightsPage from "./pages/InsightsPage";
 
 const queryClient = new QueryClient();
 
@@ -20,12 +22,37 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            {/* Auth page doesn't need sidebar */}
             <Route path="/auth" element={<Auth />} />
-            <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/manage-data" element={<ManageDataPage />} /> {/* New route */}
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            
+            {/* All other routes use the app layout with sidebar */}
+            <Route path="/" element={
+              <AppLayout>
+                <Index />
+              </AppLayout>
+            } />
+            <Route path="/transactions" element={
+              <AppLayout>
+                <TransactionsPage />
+              </AppLayout>
+            } />
+            <Route path="/insights" element={
+              <AppLayout>
+                <InsightsPage />
+              </AppLayout>
+            } />
+            <Route path="/manage-data" element={
+              <AppLayout>
+                <ManageDataPage />
+              </AppLayout>
+            } />
+            
+            {/* Catch-all route */}
+            <Route path="*" element={
+              <AppLayout>
+                <NotFound />
+              </AppLayout>
+            } />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
