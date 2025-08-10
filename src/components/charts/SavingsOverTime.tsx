@@ -10,11 +10,11 @@ interface SavingsOverTimeProps {
   }>;
 }
 
-export function SavingsOverTime({ data }: SavingsOverTimeProps) {
+const SavingsOverTime: React.FC<SavingsOverTimeProps> = ({ data }) => {
   const chartConfig = {
     amount: {
       label: 'Monthly Savings',
-      color: '#8B6914', // Dark yellow/gold
+      color: 'hsl(var(--secondary))', // Hope Teal from zawali theme
     },
   };
 
@@ -27,24 +27,41 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
     }).format(Math.round(value));
   };
 
-  // Custom tooltip that doesn't show "Savings" text
+  // Custom tooltip using the same beautiful styling as ExpensesOverTime
   const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const value = payload[0].value;
-      return (
-        <div className="bg-white p-2 border rounded shadow">
-          <p className="font-medium">{formatCurrency(value)}</p>
-          {value < 0 && <p className="text-sm text-red-600">(Overspending)</p>}
+    if (!active || !payload || !payload.length) return null;
+    
+    const value = payload[0].value;
+    if (value === 0) return null;
+    
+    return (
+      <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs">
+        <p className="font-semibold text-foreground mb-2">{label}</p>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center">
+            <div 
+              className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+              style={{ backgroundColor: 'hsl(var(--secondary))' }}
+            />
+            <span className="text-muted-foreground">Savings:</span>
+          </div>
+          <span className="font-medium text-foreground ml-2">
+            {formatCurrency(value)}
+          </span>
         </div>
-      );
-    }
-    return null;
+        {value < 0 && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <p className="text-xs text-destructive">Overspending this month</p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <Card className="bg-gradient-card shadow-soft border-0">
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Savings Over Last 12 Months</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Savings Over Last 12 Months</CardTitle>
         <p className="text-sm text-muted-foreground">Income minus Expenses (excluding investments)</p>
       </CardHeader>
       <CardContent>
@@ -54,10 +71,10 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
                   <BarChart data={data} margin={{ top: 30, right: 30, left: 20, bottom: 5 }}>
                     <XAxis 
                       dataKey="month" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                     />
                     <YAxis 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       tickFormatter={formatCurrency}
                     />
                     <ChartTooltip 
@@ -65,7 +82,7 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
                     />
                     <Bar 
                       dataKey="amount" 
-                      fill="#8B6914" // Dark yellow/gold
+                      fill="hsl(var(--secondary))" // Hope Teal
                       radius={[4, 4, 0, 0]}
                     >
                       {/* Add total labels on top of bars */}
@@ -88,7 +105,7 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
                               y={labelY}
                               textAnchor="middle" 
                               fontSize={12} 
-                              fill={isNegative ? "#dc2626" : "#666"}
+                              fill={isNegative ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"}
                               dominantBaseline="bottom"
                             >
                               {formatCurrency(value)}
@@ -104,4 +121,6 @@ export function SavingsOverTime({ data }: SavingsOverTimeProps) {
       </CardContent>
     </Card>
   );
-}
+};
+
+export default SavingsOverTime;

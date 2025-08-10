@@ -30,6 +30,46 @@ interface ValidationError {
   message: string;
 }
 
+// Zawali Progress Steps Component
+const ZawaliProgressSteps = ({ currentStep }: { currentStep: StepType }) => {
+  const steps = [
+    { id: 'upload', label: 'Select File', icon: '📁', emoji: '📂' },
+    { id: 'preview', label: 'Review Data', icon: '👀', emoji: '🔍' },
+    { id: 'suspicious', label: 'Check Issues', icon: '🕵️', emoji: '⚠️' },
+    { id: 'processing', label: 'Upload', icon: '⏳', emoji: '💫' },
+    { id: 'complete', label: 'Done', icon: '✅', emoji: '🎉' }
+  ];
+
+  const getCurrentStepIndex = () => {
+    const stepOrder = ['upload', 'preview', 'suspicious', 'processing', 'complete'];
+    return stepOrder.indexOf(currentStep);
+  };
+
+  const currentIndex = getCurrentStepIndex();
+
+  return (
+    <div className="flex items-center justify-center gap-4 mb-6 p-4 bg-gray-800 rounded-lg">
+      {steps.map((step, index) => (
+        <div key={step.id} className="flex items-center">
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+            index <= currentIndex 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-gray-600 text-gray-300'
+          }`}>
+            <span>{step.emoji}</span>
+            <span className="hidden sm:inline">{step.label}</span>
+          </div>
+          {index < steps.length - 1 && (
+            <div className={`w-8 h-0.5 mx-2 ${
+              index < currentIndex ? 'bg-primary' : 'bg-gray-600'
+            }`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded }: TransactionUploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [csvType, setCsvType] = useState<CSVType | null>(null);
@@ -92,7 +132,6 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
     });
   };
 
-
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile && selectedFile.type === "text/csv") {
@@ -101,7 +140,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
     } else {
       toast({
         title: "Invalid file type",
-        description: "Please select a CSV file",
+        description: "Please select a CSV file. We don't accept IOUs or handwritten notes! 😅",
         variant: "destructive",
       });
     }
@@ -135,7 +174,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
     } catch (error) {
       toast({
         title: "Parsing error",
-        description: "Failed to parse CSV file. Please check the format.",
+        description: "Failed to parse CSV file. Even we can't make sense of this data! 📊",
         variant: "destructive",
       });
     }
@@ -274,7 +313,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
     if (hasErrors) {
       toast({
         title: "Validation errors",
-        description: "Please fix the highlighted errors before continuing.",
+        description: "Please fix the highlighted errors before continuing. We're thorough like that! 🔍",
         variant: "destructive",
       });
       return;
@@ -423,8 +462,8 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
 
       setStep("complete");
       toast({
-        title: "Upload successful",
-        description: `${transactionsToUpload.length} transactions have been added.`,
+        title: "Upload successful! 🎉",
+        description: `${transactionsToUpload.length} transactions have been added to your financial story.`,
       });
 
       // Trigger refresh of dashboard
@@ -437,7 +476,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: "An error occurred while uploading transactions.",
+        description: "Something went wrong. Even our computers are confused! 🤖",
         variant: "destructive",
       });
       setStep(step === "suspicious" ? "suspicious" : "preview");
@@ -523,7 +562,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
           step="0.01"
           value={typeof value === 'number' ? value.toFixed(2) : ''}
           onChange={(e) => updateFn(index, field, parseFloat(e.target.value) || 0)}
-          className={`h-8 text-xs text-right font-mono ${hasError ? 'border-red-500' : ''} ${isReadOnly ? 'bg-gray-50' : ''}`}
+          className={`h-8 text-xs text-right font-mono ${hasError ? 'border-red-500' : ''} ${isReadOnly ? 'bg-muted' : ''}`}
           readOnly={isReadOnly}
         />
       );
@@ -547,7 +586,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
             type="checkbox"
             checked={value as boolean}
             onChange={(e) => updateFn(index, field, e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
           />
         </div>
       );
@@ -563,13 +602,20 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
       <DialogContent className="max-w-7xl w-[90vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Transactions
+            <div className="text-2xl zawali-float">📊</div>
+            <div>
+              <span className="text-zawali-gradient">Upload Transactions</span>
+              <div className="text-sm text-muted-foreground font-normal mt-1">
+                Feed your financial data to the zawali machine
+              </div>
+            </div>
             {csvType === "personal-capital" && (
-              <span className="text-xs text-gray-500 ml-auto">Exchange rate: 1 USD = {USD_TO_GBP_RATE} GBP</span>
+              <span className="text-xs text-muted-foreground ml-auto">Exchange rate: 1 USD = {USD_TO_GBP_RATE} GBP</span>
             )}
           </DialogTitle>
         </DialogHeader>
+
+        <ZawaliProgressSteps currentStep={step} />
 
         {step === "upload" && (
           <div className="space-y-6">
@@ -582,7 +628,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                   type="file"
                   accept=".csv"
                   onChange={handleFileSelect}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/20 file:text-primary hover:file:bg-primary/30 transition-colors"
                 />
               </div>
 
@@ -591,7 +637,8 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                      Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB) 
+                      <span className="text-muted-foreground ml-2">Ready to crunch those numbers! 📈</span>
                     </AlertDescription>
                   </Alert>
 
@@ -611,7 +658,8 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                   </div>
 
                   <Button onClick={handlePreview} disabled={!csvType} className="w-full">
-                    Preview Transactions
+                    <span>Preview Transactions</span>
+                    <span className="ml-2">🔍</span>
                   </Button>
                 </div>
               )}
@@ -624,16 +672,19 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>Preview & Edit Transactions</span>
-                  <span className="text-sm font-normal text-gray-500">
+                  <span className="flex items-center gap-2">
+                    <span>👀</span>
+                    <span>Preview & Edit Transactions</span>
+                  </span>
+                  <span className="text-sm font-normal text-muted-foreground">
                     {parsedTransactions.filter(tx => tx.isEdited).length} edited
                   </span>
                 </CardTitle>
                 <CardDescription>
                   Found {parsedTransactions.length} transactions. Click any cell to edit. 
                   {Object.keys(validationErrors).length > 0 && (
-                    <span className="text-red-600 ml-2">
-                      {Object.keys(validationErrors).length} transactions have validation errors.
+                    <span className="text-red-400 ml-2">
+                      {Object.keys(validationErrors).length} transactions need your attention.
                     </span>
                   )}
                 </CardDescription>
@@ -641,7 +692,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
               <CardContent>
                 <div className="max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-white border-b">
+                    <thead className="sticky top-0 bg-background border-b">
                       <tr>
                         <th className="text-left p-2 w-24">Date</th>
                         <th className="text-left p-2">Description</th>
@@ -659,7 +710,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                       {displayedTransactions.map((tx, index) => (
                         <tr 
                           key={index} 
-                          className={`border-b ${tx.isEdited ? 'bg-blue-50' : ''} ${validationErrors[index] ? 'bg-red-50' : ''}`}
+                          className={`border-b ${tx.isEdited ? 'bg-primary/10' : ''} ${validationErrors[index] ? 'bg-red-500/10' : ''}`}
                         >
                           <td className="p-1">{renderEditableCell(tx, index, 'date')}</td>
                           <td className="p-1">{renderEditableCell(tx, index, 'description')}</td>
@@ -677,6 +728,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                                 variant="ghost"
                                 onClick={() => resetTransaction(index)}
                                 className="h-6 w-6 p-0"
+                                title="Reset changes"
                               >
                                 ↺
                               </Button>
@@ -706,7 +758,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                   <Alert className="mt-4">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Validation Errors:</strong>
+                      <strong>Issues found:</strong>
                       <ul className="list-disc list-inside mt-2">
                         {Object.entries(validationErrors).map(([index, errors]) => (
                           <li key={index} className="text-sm">
@@ -725,7 +777,8 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                 Back
               </Button>
               <Button onClick={handleContinueToSuspicious} className="flex-1">
-                Continue to Review
+                <span>Continue to Review</span>
+                <span className="ml-2">🕵️</span>
               </Button>
             </div>
           </div>
@@ -737,16 +790,18 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  Review Suspicious Transactions
+                  <span>Review Suspicious Transactions</span>
+                  <span className="text-2xl">🕵️</span>
                 </CardTitle>
                 <CardDescription>
-                  {suspiciousTransactions.length} transactions flagged for review. Edit as needed, then upload.
+                  {suspiciousTransactions.length} transactions flagged for review. Our algorithms are suspicious of everything! 
+                  Edit as needed, then upload.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-white border-b">
+                    <thead className="sticky top-0 bg-background border-b">
                       <tr>
                         <th className="text-left p-2 w-24">Date</th>
                         <th className="text-left p-2">Description</th>
@@ -763,7 +818,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                     </thead>
                     <tbody>
                       {suspiciousTransactions.map((tx, index) => (
-                        <tr key={index} className={`border-b ${tx.isEdited ? 'bg-blue-50' : 'bg-amber-50'}`}>
+                        <tr key={index} className={`border-b ${tx.isEdited ? 'bg-primary/10' : 'bg-amber-500/10'}`}>
                           <td className="p-1">{renderEditableCell(tx, index, 'date', true)}</td>
                           <td className="p-1">{renderEditableCell(tx, index, 'description', true)}</td>
                           <td className="p-1">{renderEditableCell(tx, index, 'category', true)}</td>
@@ -807,7 +862,8 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
                 Back
               </Button>
               <Button onClick={handleUpload} className="flex-1">
-                Upload All {parsedTransactions.length} Transactions
+                <span>Upload All {parsedTransactions.length} Transactions</span>
+                <span className="ml-2">🚀</span>
               </Button>
             </div>
           </div>
@@ -815,18 +871,23 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
 
         {step === "processing" && (
           <div className="flex flex-col items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <div className="text-6xl mb-4 zawali-float">💫</div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
             <p className="text-lg font-medium">Processing transactions...</p>
-            <p className="text-sm text-gray-500">This may take a few moments</p>
+            <p className="text-sm text-muted-foreground">Adding your financial adventures to zawali!</p>
           </div>
         )}
 
         {step === "complete" && (
           <div className="flex flex-col items-center justify-center py-8">
-            <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
+            <div className="text-6xl mb-4 zawali-bounce">🎉</div>
+            <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
             <p className="text-lg font-medium">Upload Complete!</p>
-            <p className="text-sm text-gray-500">
-              {parsedTransactions.length} transactions have been added to your account
+            <p className="text-sm text-muted-foreground">
+              {parsedTransactions.length} transactions have been added to your financial story
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 italic">
+              Your bank account's autobiography just got more interesting! 📖
             </p>
           </div>
         )}
@@ -835,7 +896,7 @@ export function TransactionUploadModal({ isOpen, onClose, onTransactionsUploaded
   );
 }
 
-// Helper functions for ensuring default data exists
+// Helper functions for ensuring default data exists (unchanged)
 async function ensureDefaultCategories(userId: string) {
   const defaultCategories = [
     { name: "Bills", type: "expense" },
@@ -853,7 +914,6 @@ async function ensureDefaultCategories(userId: string) {
   ];
 
   for (const category of defaultCategories) {
-    // Check if category already exists
     const { data: existing } = await supabase
       .from("categories")
       .select("id")
@@ -861,7 +921,6 @@ async function ensureDefaultCategories(userId: string) {
       .eq("name", category.name)
       .single();
 
-    // Only insert if it doesn't exist
     if (!existing) {
       const { error } = await supabase
         .from("categories")
@@ -896,7 +955,6 @@ async function ensureDefaultAccounts(userId: string) {
   ];
 
   for (const account of defaultAccounts) {
-    // Check if account already exists
     const { data: existing } = await supabase
       .from("accounts")
       .select("id")
@@ -904,7 +962,6 @@ async function ensureDefaultAccounts(userId: string) {
       .eq("name", account.name)
       .single();
 
-    // Only insert if it doesn't exist
     if (!existing) {
       const { error } = await supabase
         .from("accounts")

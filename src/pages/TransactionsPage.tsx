@@ -15,6 +15,19 @@ import { BulkEditTransactionModal } from "@/components/transactions/BulkEditTran
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
 import { BulkDeleteConfirmDialog } from "@/components/transactions/BulkDeleteConfirmDialog";
 
+// Zawali Toast Component
+const ZawaliToast = ({ message, onDismiss }: { message: string; onDismiss: () => void }) => (
+  <div className="fixed top-4 right-4 bg-gray-800 border border-gray-600 rounded-lg p-4 shadow-lg z-50 max-w-sm zawali-slide-up">
+    <div className="flex items-start gap-3">
+      <span className="text-xl">😅</span>
+      <div className="flex-1">
+        <p className="text-gray-200 text-sm">{message}</p>
+      </div>
+      <button onClick={onDismiss} className="text-gray-400 hover:text-gray-200 text-sm">✕</button>
+    </div>
+  </div>
+);
+
 const TransactionsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -56,11 +69,20 @@ const TransactionsPage: React.FC = () => {
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
+  // Zawali personality
+  const [zawaliMessage, setZawaliMessage] = useState<string | null>(null);
+
   // Keyboard state tracking
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   const ITEMS_PER_PAGE = 50;
+
+  // Show zawali message occasionally
+  const showZawaliMessage = (message: string) => {
+    setZawaliMessage(message);
+    setTimeout(() => setZawaliMessage(null), 4000);
+  };
 
   // Track keyboard state
   useEffect(() => {
@@ -97,6 +119,10 @@ const TransactionsPage: React.FC = () => {
     setAccountFilter('all');
     setTripFilter('all');
     setFamilyMemberFilter('all');
+    
+    if (Math.random() < 0.2) {
+      showZawaliMessage("Filters cleared! Starting fresh with all your financial adventures 📊");
+    }
   };
 
   const filteredAndSortedTransactions = useMemo(() => {
@@ -223,6 +249,10 @@ const TransactionsPage: React.FC = () => {
     
     // Reset last selected index
     setLastSelectedIndex(-1);
+    
+    if (checked && Math.random() < 0.3) {
+      showZawaliMessage("Selected all transactions! Mass financial analysis mode activated 📊");
+    }
   };
 
   // Clear all selections
@@ -258,6 +288,11 @@ const TransactionsPage: React.FC = () => {
         description: "Transaction deleted.",
       });
 
+      // Zawali humor occasionally
+      if (Math.random() < 0.25) {
+        showZawaliMessage("Transaction deleted! One less financial mystery to solve 🕵️");
+      }
+
       refetch();
       setDeletingTransaction(null);
       
@@ -280,6 +315,10 @@ const TransactionsPage: React.FC = () => {
   // Handle add transaction
   const handleAddTransaction = () => {
     setIsAddModalOpen(true);
+    
+    if (Math.random() < 0.2) {
+      showZawaliMessage("Adding a new transaction! Your financial story continues... 📖");
+    }
   };
 
   // Handle modal save
@@ -287,6 +326,10 @@ const TransactionsPage: React.FC = () => {
     refetch();
     setIsAddModalOpen(false);
     setEditingTransaction(null);
+    
+    if (Math.random() < 0.3) {
+      showZawaliMessage("Transaction saved! Another chapter in the book of your finances 💼");
+    }
   };
 
   // Handle bulk edit
@@ -332,6 +375,10 @@ const TransactionsPage: React.FC = () => {
           title: "Bulk Update Completed",
           description: `Successfully updated ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
         });
+        
+        if (Math.random() < 0.4) {
+          showZawaliMessage(`${result.successCount} transactions updated! Efficiency level: zawali pro 🚀`);
+        }
       }
 
       if (result.failures.length > 0) {
@@ -375,6 +422,10 @@ const TransactionsPage: React.FC = () => {
           title: "Bulk Delete Completed",
           description: `Successfully deleted ${result.successCount} transaction${result.successCount !== 1 ? 's' : ''}.${result.failures.length > 0 ? ` ${result.failures.length} transaction${result.failures.length !== 1 ? 's' : ''} failed.` : ''}`,
         });
+        
+        if (Math.random() < 0.4) {
+          showZawaliMessage(`${result.successCount} transactions deleted! Spring cleaning, zawali style 🧹`);
+        }
       }
 
       if (result.failures.length > 0) {
@@ -450,16 +501,18 @@ const TransactionsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-4">Loading transactions...</p>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your financial adventures...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header */}
+      {/* Header with zawali personality */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button 
@@ -470,7 +523,10 @@ const TransactionsPage: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Button>
-          <h1 className="text-3xl font-bold">All Transactions</h1>
+          <div>
+            <h1 className="text-3xl font-bold">All Transactions</h1>
+            <p className="text-muted-foreground text-sm">Your complete financial story, transaction by transaction</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {selectedTransactionIds.size > 0 && (
@@ -486,7 +542,7 @@ const TransactionsPage: React.FC = () => {
               <Button 
                 variant="outline"
                 onClick={handleBulkDelete}
-                className="flex items-center gap-2 text-red-600 hover:text-red-700"
+                className="flex items-center gap-2 text-red-400 hover:text-red-300"
               >
                 <Trash className="h-4 w-4" />
                 Bulk Delete ({selectedTransactionIds.size})
@@ -513,13 +569,13 @@ const TransactionsPage: React.FC = () => {
 
       {/* Keyboard shortcuts info */}
       {selectedTransactionIds.size > 0 && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="text-sm text-blue-800">
+        <div className="mb-4 p-3 bg-gray-800 border border-gray-600 rounded-lg">
+          <div className="text-sm text-gray-300">
             <span className="font-medium">Selection tips:</span>
-            <span className="ml-2">Hold <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">Shift</kbd> and click to select ranges</span>
-            <span className="ml-4">Hold <kbd className="px-1 py-0.5 bg-blue-200 rounded text-xs">Ctrl/Cmd</kbd> and click to select individual items</span>
+            <span className="ml-2">Hold <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Shift</kbd> and click to select ranges</span>
+            <span className="ml-4">Hold <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Ctrl/Cmd</kbd> and click to select individual items</span>
             {(isShiftPressed || isCtrlPressed) && (
-              <span className="ml-4 text-blue-600 font-medium">
+              <span className="ml-4 text-primary font-medium">
                 {isShiftPressed && "Shift"} {isShiftPressed && isCtrlPressed && "+"} {isCtrlPressed && "Ctrl/Cmd"} active
               </span>
             )}
@@ -661,7 +717,7 @@ const TransactionsPage: React.FC = () => {
       </Card>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-gray-600 flex items-center justify-between">
+      <div className="mb-4 text-sm text-muted-foreground flex items-center justify-between">
         <div>
           Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
           {filteredAndSortedTransactions.length !== transactions.length && (
@@ -669,7 +725,7 @@ const TransactionsPage: React.FC = () => {
           )}
         </div>
         {selectedTransactionIds.size > 0 && (
-          <div className="text-blue-600 font-medium">
+          <div className="text-primary font-medium">
             {selectedTransactionIds.size} transaction{selectedTransactionIds.size !== 1 ? 's' : ''} selected
           </div>
         )}
@@ -679,7 +735,8 @@ const TransactionsPage: React.FC = () => {
       <Card>
         <CardContent className="p-0">
           {paginatedTransactions.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-muted-foreground">
+              <div className="text-6xl mb-4">📊</div>
               <p className="text-lg">No transactions found</p>
               <p className="text-sm mt-2">
                 {transactions.length === 0 
@@ -690,7 +747,7 @@ const TransactionsPage: React.FC = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b bg-gray-50">
+                <thead className="border-b">
                   <tr>
                     <th className="text-left p-4 font-semibold">
                       <Checkbox
@@ -700,13 +757,13 @@ const TransactionsPage: React.FC = () => {
                       />
                     </th>
                     <th 
-                      className="text-left p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort('date')}
                     >
                       Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
-                      className="text-left p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort('description')}
                     >
                       Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -717,7 +774,7 @@ const TransactionsPage: React.FC = () => {
                     <th className="text-left p-4 font-semibold">Family</th>
                     <th className="text-left p-4 font-semibold">Encord</th>
                     <th 
-                      className="text-right p-4 font-semibold cursor-pointer hover:bg-gray-100"
+                      className="text-right p-4 font-semibold cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort('amount_gbp')}
                     >
                       Amount (GBP) {sortField === 'amount_gbp' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -729,10 +786,10 @@ const TransactionsPage: React.FC = () => {
                   {paginatedTransactions.map((transaction: any, index: number) => (
                     <tr 
                       key={transaction.id} 
-                      className={`border-b hover:bg-gray-50 cursor-pointer ${
+                      className={`border-b hover:bg-muted/50 cursor-pointer transition-colors ${
                         selectedTransactionIds.has(transaction.id) 
-                          ? 'bg-blue-50' 
-                          : index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                          ? 'bg-primary/10' 
+                          : ''
                       }`}
                       onClick={(e) => {
                         // Don't trigger selection if clicking on action buttons
@@ -767,7 +824,7 @@ const TransactionsPage: React.FC = () => {
                         {getTripName(transaction.trip_id) ? (
                           <Badge variant="outline">{getTripName(transaction.trip_id)}</Badge>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="p-4 text-sm">
@@ -780,22 +837,22 @@ const TransactionsPage: React.FC = () => {
                             <span className="text-xs">{getFamilyMemberName(transaction.family_member_id)}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="p-4 text-sm">
                         {transaction.encord_expensable ? (
-                          <Badge className="bg-green-100 text-green-800">Yes</Badge>
+                          <Badge className="bg-green-500/20 text-green-400 border-green-500/50">Yes</Badge>
                         ) : (
                           <Badge variant="secondary">No</Badge>
                         )}
                       </td>
                       <td className="p-4 text-sm text-right font-mono">
-                        <span className={(transaction.amount_gbp || 0) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        <span className={`font-semibold ${(transaction.amount_gbp || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           £{((transaction.amount_gbp || 0)).toFixed(2)}
                         </span>
                         {transaction.currency !== 'GBP' && transaction.amount && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {transaction.currency} {transaction.amount.toFixed(2)}
                           </div>
                         )}
@@ -820,7 +877,7 @@ const TransactionsPage: React.FC = () => {
                               e.stopPropagation();
                               handleDelete(transaction);
                             }}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -895,6 +952,14 @@ const TransactionsPage: React.FC = () => {
         onConfirm={confirmDelete}
         transactionDescription={deletingTransaction?.description || ''}
       />
+
+      {/* Zawali Toast Message */}
+      {zawaliMessage && (
+        <ZawaliToast 
+          message={zawaliMessage}
+          onDismiss={() => setZawaliMessage(null)}
+        />
+      )}
     </div>
   );
 };

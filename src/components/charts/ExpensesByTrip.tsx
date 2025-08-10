@@ -29,34 +29,34 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
     }).format(Math.round(value));
   };
 
-  // FIXED: Convert negative amounts to positive for display with muted colors
+  // FIXED: Convert negative amounts to positive for display with zawali theme colors
   const processedData = data.map((item, index) => {
-    // Use muted/pastel colors for trips
-    const mutedColors = [
-      '#8B9DC3', // Muted blue
-      '#DDA0A0', // Muted red/pink
-      '#A8C4A2', // Muted green
-      '#E6C18A', // Muted orange
-      '#C8A4C8', // Muted purple
-      '#9FC5C5', // Muted teal
-      '#D4B4A8', // Muted brown
-      '#B8C4A4'  // Muted olive
+    // Use zawali theme colors for trips
+    const zawaliColors = [
+      'hsl(0 84% 60%)',    // Primary - Broke Red
+      'hsl(174 62% 47%)',  // Secondary - Hope Teal
+      'hsl(199 89% 48%)',  // Accent - Dream Blue
+      'hsl(142 71% 45%)',  // Success - Green
+      'hsl(36 100% 50%)',  // Warning - Orange
+      'hsl(14 100% 57%)',  // Destructive - Red Orange
+      'hsl(0 84% 70%)',    // Lighter Primary
+      'hsl(174 62% 57%)'   // Lighter Secondary
     ];
     
     return {
       ...item,
       amount: Math.abs(item.amount), // Show expenses as positive amounts
-      color: mutedColors[index % mutedColors.length]
+      color: zawaliColors[index % zawaliColors.length]
     };
   });
 
-  // Custom tooltip that shows just the trip and amount
+  // Custom tooltip using dark theme colors
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
       return (
-        <div className="bg-white p-2 border rounded shadow">
-          <p className="font-medium">{`${label}: ${formatCurrency(value)}`}</p>
+        <div className="bg-card border border-border p-2 rounded shadow-lg">
+          <p className="font-medium text-foreground">{`${label}: ${formatCurrency(value)}`}</p>
         </div>
       );
     }
@@ -64,9 +64,9 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
   };
 
   return (
-    <Card className="bg-gradient-card shadow-soft border-0">
+    <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">All-Time Expenses by Trip</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">All-Time Expenses by Trip</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex justify-center">
@@ -75,13 +75,13 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
                 <BarChart data={processedData} margin={{ top: 30, right: 30, left: 20, bottom: 80 }}>
                   <XAxis 
                     dataKey="trip" 
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                     angle={-45}
                     textAnchor="end"
                     height={80}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                     tickFormatter={formatCurrency}
                   />
                   <ChartTooltip 
@@ -97,9 +97,9 @@ export function ExpensesByTrip({ data }: ExpensesByTripProps) {
                       position="top"
                       formatter={(value: number) => formatCurrency(value)}
                       fontSize={12}
-                      fill="#666"
+                      fill="hsl(var(--muted-foreground))"
                     />
-                    {/* Use different colors for each bar */}
+                    {/* Use different zawali colors for each bar */}
                     {processedData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}

@@ -12,6 +12,36 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { chartCalculations } from "@/lib/chartCalculations";
 
+// Subtle Zawali Message Component - only appears occasionally
+const ZawaliToast = ({ message, type, onDismiss }: { 
+  message: string;
+  type: 'success' | 'info' | 'warning';
+  onDismiss: () => void;
+}) => {
+  const icons = {
+    success: '🎉',
+    info: '💡', 
+    warning: '😅'
+  };
+
+  return (
+    <div className="fixed top-4 right-4 bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-lg z-50 max-w-sm zawali-slide-up">
+      <div className="flex items-start gap-3">
+        <span className="text-xl">{icons[type]}</span>
+        <div className="flex-1">
+          <p className="text-gray-200 text-sm">{message}</p>
+        </div>
+        <button 
+          onClick={onDismiss}
+          className="text-gray-400 hover:text-gray-200 text-sm"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +61,9 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Subtle zawali personality - only show occasionally
+  const [zawaliMessage, setZawaliMessage] = useState<{text: string, type: 'success' | 'info' | 'warning'} | null>(null);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -44,6 +77,15 @@ const Index = () => {
       refetch();
     }
     
+    // Subtle zawali humor - only sometimes
+    if (Math.random() < 0.3) {
+      setZawaliMessage({
+        text: "More transactions uploaded! Your financial story continues... 📊",
+        type: 'success'
+      });
+      setTimeout(() => setZawaliMessage(null), 4000);
+    }
+    
     toast({
       title: "Success!",
       description: "Transactions uploaded successfully. Dashboard updated.",
@@ -53,6 +95,15 @@ const Index = () => {
   const handleAddTransactionClick = () => {
     setEditingTransaction(null);
     setIsTransactionModalOpen(true);
+    
+    // Subtle zawali humor - only sometimes  
+    if (Math.random() < 0.2) {
+      setZawaliMessage({
+        text: "Adding another transaction... the plot thickens! 😅",
+        type: 'info'
+      });
+      setTimeout(() => setZawaliMessage(null), 3000);
+    }
   };
 
   const handleTransactionSaved = () => {
@@ -60,10 +111,34 @@ const Index = () => {
     setEditingTransaction(null);
     refetch();
     setRefreshKey(prev => prev + 1);
+    
+    // Subtle zawali message - only sometimes
+    if (Math.random() < 0.25) {
+      const messages = [
+        "Transaction saved! Your financial journey continues.",
+        "Another entry in the books! 📖",
+        "Successfully logged your latest financial adventure.",
+        "Your transaction has been documented for posterity."
+      ];
+      
+      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+      setZawaliMessage({
+        text: randomMessage,
+        type: 'success'
+      });
+      setTimeout(() => setZawaliMessage(null), 3500);
+    }
   };
 
   if (loading || !user) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   // Calculate metrics using centralized calculations
@@ -148,22 +223,6 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Call-to-action for Insights */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Ready to dive deeper into your finances?
-            </h3>
-            <p className="text-gray-600 mb-4">
-              View detailed charts and spending insights to better understand your financial patterns.
-            </p>
-            <button
-              onClick={() => navigate('/insights')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-            >
-              View Financial Insights
-            </button>
-          </div>
-
           <AddEditTransactionModal
             isOpen={isTransactionModalOpen}
             onClose={() => setIsTransactionModalOpen(false)}
@@ -173,6 +232,15 @@ const Index = () => {
             accounts={accounts}
             trips={trips}
           />
+
+          {/* Zawali toast message - appears occasionally */}
+          {zawaliMessage && (
+            <ZawaliToast 
+              message={zawaliMessage.text}
+              type={zawaliMessage.type}
+              onDismiss={() => setZawaliMessage(null)}
+            />
+          )}
         </div>
       </div>
     </ProtectedRoute>

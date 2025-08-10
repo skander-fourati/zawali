@@ -82,33 +82,33 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
         ) : (
           <div className="space-y-3 max-h-[600px] overflow-y-auto">
             {transactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-transparent hover:border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                    {transaction.type === 'income' ? (
-                      <ArrowUpRight className="h-4 w-4 text-success" />
-                    ) : (
-                      <ArrowDownLeft className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{transaction.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(transaction.date)}
-                      </span>
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${getCategoryColor(transaction.category)}`}
-                      >
-                        {transaction.category}
-                      </Badge>
-                    </div>
+              <div key={transaction.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-transparent hover:border-gray-200">
+                <div className={`p-2 rounded-full flex-shrink-0 ${transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                  {transaction.type === 'income' ? (
+                    <ArrowUpRight className="h-4 w-4 text-success" />
+                  ) : (
+                    <ArrowDownLeft className="h-4 w-4 text-destructive" />
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="font-medium text-sm truncate" title={transaction.description}>
+                    {transaction.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 overflow-hidden">
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {formatDate(transaction.date)}
+                    </span>
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs flex-shrink-0 ${getCategoryColor(transaction.category)}`}
+                    >
+                      {transaction.category}
+                    </Badge>
                   </div>
                 </div>
                 
-                <div className={`font-semibold text-sm ${transaction.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                <div className={`font-semibold text-sm text-right flex-shrink-0 min-w-[80px] ${transaction.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                   {transaction.type === 'income' ? '+' : ''}{formatCurrency(transaction.amount)}
                 </div>
               </div>
