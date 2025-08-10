@@ -1,7 +1,7 @@
 {
   "name": "zawali",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "electron/main.cjs",
   "type": "module",
   "homepage": "./",
@@ -31,11 +31,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "icon": "public/favicon/web-app-manifest-512x512.png"
@@ -67,7 +71,7 @@
       "repo": "zawali",
       "private": false
     }
-},
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
