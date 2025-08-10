@@ -1,9 +1,10 @@
 name: Build and Release Desktop App
 
-# Trigger build when you push to main branch or create a tag
+# Separate triggers to avoid double-builds
 on:
   push:
     branches: [ main ]
+  push:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
@@ -34,14 +35,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload the .dmg file as an artifact (for manual download)
+      # Upload artifacts with unique names to avoid conflicts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zawali-finance-mac
+          name: zawali-finance-mac-${{ github.run_number }}-${{ github.sha }}
           path: dist-electron/*.dmg
 
-      # If this is a tagged release, create a GitHub release
+      # TAGGED RELEASES: Create real GitHub release (highest priority)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
@@ -51,13 +52,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # If this is a push to main (not a tag), create a draft release
+      # DEVELOPMENT RELEASES: Only for main pushes that aren't tag pushes
       - name: Create Draft Release
-        if: github.ref == 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v')
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.0-dev-${{ github.sha }}
-          name: Development Build ${{ github.sha }}
+          tag_name: v1.0.0-dev-${{ github.run_number }}
+          name: Development Build ${{ github.run_number }} (${{ github.sha }})
           files: dist-electron/*.dmg
           draft: true
           prerelease: true
