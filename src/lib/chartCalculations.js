@@ -350,6 +350,57 @@ export const chartCalculations = {
   },
 
   /**
+   * NEW: Calculate investment data for exactly the last 12 calendar months
+   * Includes all 12 months (with 0s for months with no activity)
+   * @param {Array} transactions
+   * @returns {Array} - 12 months of investment data ending with current month
+   */
+  getLast12MonthsInvestmentData: (transactions) => {
+    const now = new Date();
+    const monthsData = [];
+
+    // Generate exactly 12 months ending with current month
+    for (let i = 11; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = monthDate.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+
+      // Filter investment transactions for this specific month
+      const monthInvestments = getInvestmentFilteredTransactions(
+        transactions,
+      ).filter((t) => {
+        const transactionDate = new Date(t.date);
+        return (
+          transactionDate.getFullYear() === monthDate.getFullYear() &&
+          transactionDate.getMonth() === monthDate.getMonth()
+        );
+      });
+
+      // Calculate net investment for this month (investments - withdrawals)
+      let netInvestment = 0;
+      monthInvestments.forEach((transaction) => {
+        const amount = transaction.amount_gbp || 0;
+        if (amount > 0) {
+          // Positive amounts are investments
+          netInvestment += amount;
+        } else if (amount < 0) {
+          // Negative amounts are withdrawals
+          netInvestment -= Math.abs(amount);
+        }
+      });
+
+      monthsData.push({
+        month: monthStr,
+        amount: netInvestment, // Can be negative if more withdrawals than investments
+      });
+    }
+
+    return monthsData;
+  },
+
+  /**
    * Calculate expenses by trip for current month
    * @param {Array} transactions
    * @returns {Array} - Trip expense data with colors
