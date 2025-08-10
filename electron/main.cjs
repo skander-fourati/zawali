@@ -41,10 +41,10 @@ autoUpdater.on('update-not-available', (info) => {
 autoUpdater.on('error', (error) => {
   console.error('❌ Auto-updater error:', error);
   
-  // If code signing error, show manual update dialog
+  // If code signing error, try to continue anyway - sometimes it still works
   if (error.message.includes('Could not get code signature')) {
-    console.log('📋 Auto-updater: Showing manual update dialog due to code signing...');
-    showManualUpdateDialog();
+    console.log('⚠️ Auto-updater: Code signing issue, but update might still work...');
+    // Don't show error dialog immediately - wait to see if update-downloaded fires
   }
 });
 
@@ -75,31 +75,33 @@ function showUpdateReadyDialog(version) {
   if (choice === 0) {
     console.log('🔄 Auto-updater: User chose to install update now');
     try {
+      // Try auto-install first - sometimes works even with code signing issues
       autoUpdater.quitAndInstall();
     } catch (error) {
       console.error('❌ Auto-updater: Failed to install update:', error);
-      showManualUpdateDialog();
+      showSimpleUpdateDialog(version);
     }
   } else {
     console.log('⏰ Auto-updater: User chose to install update later');
   }
 }
 
-// Show manual update dialog when auto-install fails
-function showManualUpdateDialog() {
+// Show simple update dialog when auto-install fails  
+function showSimpleUpdateDialog(version) {
   if (!mainWindow) return;
   
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type: 'info',
     title: 'Update Available',
-    message: 'A new version of Zawali is available!',
-    detail: 'Please download the latest version from GitHub releases to get the newest features and fixes.',
-    buttons: ['Open GitHub Releases', 'Later'],
+    message: `Zawali ${version} is available!`,
+    detail: `A new version has been downloaded. Please quit the app and reinstall Zawali to get the latest updates.`,
+    buttons: ['Download New Version', 'OK'],
     defaultId: 0
   });
 
   if (choice === 0) {
-    shell.openExternal('https://github.com/skander-fourati/zawali/releases/latest');
+    // Open the direct download link for the DMG
+    shell.openExternal('https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-' + version + '-universal.dmg');
   }
 }
 
