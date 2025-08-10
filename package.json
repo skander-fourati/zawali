@@ -18,11 +18,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "icon": "public/favicon/web-app-manifest-512x512.png"
@@ -54,5 +58,6 @@
       "repo": "zawali",
       "private": false
     }
-  }
+  },
+  "version": "0.0.1"
 }
