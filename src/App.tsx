@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import TransactionsPage from "./pages/TransactionsPage";
 import ManageDataPage from "./pages/ManageDataPage";
 import InsightsPage from "./pages/InsightsPage";
+import PortfolioPage from "./pages/PortfolioPage";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,14 @@ const AppRoutes = () => {
         element={
           <AppLayout>
             <InsightsPage />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/portfolio"
+        element={
+          <AppLayout>
+            <PortfolioPage />
           </AppLayout>
         }
       />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { shouldIncludeInPortfolioBreakdown } from "@/components/portfolio/investments";
 
 export interface Transaction {
   id: string;
@@ -13,6 +14,7 @@ export interface Transaction {
   transaction_type: "income" | "expense" | "transfer";
   trip_id: string | null;
   family_member_id: string | null;
+  investment_id: string | null;
   encord_expensable?: boolean;
   category: {
     id: string;
@@ -33,6 +35,11 @@ export interface Transaction {
     name: string;
     color: string;
     status: "active" | "settled" | "archived";
+  } | null;
+  investment: {
+    id: string;
+    ticker: string;
+    investment_type: string;
   } | null;
 }
 
@@ -68,6 +75,30 @@ export interface FamilyMember {
   updated_at?: string;
 }
 
+export interface Investment {
+  id: string;
+  user_id: string;
+  ticker: string;
+  investment_type: string;
+  created_at?: string;
+  updated_at?: string;
+  // Calculated fields from the view
+  current_market_value?: number;
+  market_value_updated_at?: string;
+  total_invested?: number;
+  transaction_count?: number;
+  // Performance calculations
+  total_return?: number;
+  return_percentage?: number;
+}
+
+export interface InvestmentMarketValue {
+  id: string;
+  investment_id: string;
+  market_value: number;
+  updated_at: string;
+}
+
 export interface BulkUpdateResult {
   successCount: number;
   failureCount: number;
@@ -85,6 +116,7 @@ export function useTransactions() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -98,6 +130,7 @@ export function useTransactions() {
     try {
       setLoading(true);
 
+      // Fetch transactions with investment data
       const { data: transactionsData, error: transactionsError } =
         await supabase
           .from("transactions")
@@ -107,7 +140,8 @@ export function useTransactions() {
           category:categories(*),
           account:accounts(*),
           trip:trips(id, name),
-          family_member:family_members(id, name, color, status)
+          family_member:family_members(id, name, color, status),
+          investment:investments(id, ticker, investment_type)
         `,
           )
           .eq("user_id", user?.id)
@@ -165,6 +199,40 @@ export function useTransactions() {
       setAccounts((accountsData || []) as Account[]);
       setTrips((tripsData || []) as Trip[]);
       setFamilyMembers((familyMembersData || []) as unknown as FamilyMember[]);
+
+      // Fetch investments with summary data (temporarily simplified)
+      try {
+        const { data: investmentsData, error: investmentsError } =
+          await supabase
+            .from("investments")
+            .select("*")
+            .eq("user_id", user?.id)
+            .order("ticker");
+
+        if (investmentsError) {
+          console.log(
+            "No investments found or error fetching investments:",
+            investmentsError,
+          );
+        }
+
+        // Simple investments array for now
+        const processedInvestments = (investmentsData || []).map(
+          (inv: any) => ({
+            ...inv,
+            total_invested: 0, // TODO: Calculate from transactions
+            current_market_value: 0, // TODO: Get from market_values table
+            total_return: 0,
+            return_percentage: 0,
+            transaction_count: 0,
+          }),
+        );
+
+        setInvestments(processedInvestments as Investment[]);
+      } catch (investmentError) {
+        console.log("Investment fetch error:", investmentError);
+        setInvestments([]);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -175,12 +243,13 @@ export function useTransactions() {
   const addTransaction = async (
     transaction: Omit<
       Transaction,
-      "id" | "category" | "account" | "trip" | "family_member"
+      "id" | "category" | "account" | "trip" | "family_member" | "investment"
     > & {
       category_id?: string;
       account_id: string;
       trip_id?: string | null;
       family_member_id?: string | null;
+      investment_id?: string | null;
     },
   ) => {
     try {
@@ -536,21 +605,120 @@ export function useTransactions() {
     return balances;
   };
 
+  // Portfolio-specific functions
+  const getPortfolioSummary = () => {
+    const totalPortfolioValue = investments.reduce(
+      (sum, inv) => sum + (inv.current_market_value || 0),
+      0,
+    );
+
+    const totalInvested = investments.reduce(
+      (sum, inv) => sum + Math.abs(inv.total_invested || 0),
+      0,
+    );
+
+    const totalReturn = totalPortfolioValue - totalInvested;
+    const returnPercentage =
+      totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+
+    // Find last updated date (placeholder)
+    const lastUpdated = null; // TODO: Get from market value updates
+
+    return {
+      totalPortfolioValue,
+      totalInvested,
+      totalReturn,
+      returnPercentage,
+      holdingsCount: investments.length,
+      lastUpdated,
+    };
+  };
+
+  const getAssetAllocation = () => {
+    // Simplified - just group by investment type
+    const investmentsByType = investments
+      .filter((inv) => shouldIncludeInPortfolioBreakdown(inv.investment_type))
+      .reduce(
+        (acc, inv) => {
+          const marketValue = inv.current_market_value || 0;
+          if (marketValue > 0) {
+            if (!acc[inv.investment_type]) {
+              acc[inv.investment_type] = { amount: 0, count: 0 };
+            }
+            acc[inv.investment_type].amount += marketValue;
+            acc[inv.investment_type].count++;
+          }
+          return acc;
+        },
+        {} as Record<string, { amount: number; count: number }>,
+      );
+
+    const totalValue = Object.values(investmentsByType).reduce(
+      (sum, data) => sum + data.amount,
+      0,
+    );
+
+    return Object.entries(investmentsByType).map(([type, data]) => ({
+      investment_type: type,
+      amount: data.amount,
+      percentage: totalValue > 0 ? (data.amount / totalValue) * 100 : 0,
+      count: data.count,
+    }));
+  };
+
+  const getInvestmentTransactions = () => {
+    const investmentCategory = categories.find(
+      (cat) => cat.name === "Investment",
+    );
+    if (!investmentCategory) return [];
+
+    return transactions
+      .filter((t) => t.category?.id === investmentCategory.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
+
+  // Simplified market value update function
+  const updateInvestmentMarketValue = async (
+    investmentId: string,
+    marketValue: number,
+  ) => {
+    try {
+      const { error } = await supabase.from("investment_market_values").insert({
+        investment_id: investmentId,
+        market_value: marketValue,
+      });
+
+      if (error) throw error;
+
+      await fetchData(); // Refresh data
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating market value:", error);
+      return { success: false, error };
+    }
+  };
+
   return {
     transactions,
     categories,
     accounts,
     trips,
     familyMembers,
+    investments,
     loading,
     addTransaction,
-    bulkUpdateTransactions, // Bulk update functionality
-    bulkDeleteTransactions, // NEW: Bulk delete functionality
+    bulkUpdateTransactions,
+    bulkDeleteTransactions,
+    updateInvestmentMarketValue,
     getMonthlyStats,
     getExpensesByCategory,
     getLast12MonthsData,
     getExpensesByTrip,
     getFamilyBalances,
+    // Portfolio functions
+    getPortfolioSummary,
+    getAssetAllocation,
+    getInvestmentTransactions,
     refetch: fetchData,
   };
 }

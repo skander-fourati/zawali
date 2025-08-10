@@ -146,9 +146,7 @@ export function Sidebar({}: SidebarProps) {
       label: isExpanded ? "Portfolio" : "Portfolio",
       icon: Briefcase,
       path: "/portfolio",
-      action: () => {}, // Empty for now
-      disabled: true,
-      comingSoon: true,
+      action: () => navigate("/portfolio"),
     },
   ];
 
@@ -207,7 +205,6 @@ export function Sidebar({}: SidebarProps) {
               <button
                 key={item.id}
                 onClick={item.action}
-                disabled={item.disabled}
                 className={cn(
                   "w-full flex items-center rounded-lg text-base font-medium transition-colors",
                   "hover:bg-sidebar-accent focus:outline-none focus:ring-2 focus:ring-sidebar-ring focus:ring-offset-2",
@@ -215,7 +212,6 @@ export function Sidebar({}: SidebarProps) {
                     "bg-sidebar-primary text-sidebar-primary-foreground",
                   !isActive &&
                     "text-sidebar-foreground hover:text-sidebar-accent-foreground",
-                  item.disabled && "opacity-50 cursor-not-allowed",
                   isExpanded
                     ? "gap-4 px-3 py-3.5 justify-start"
                     : "px-3 py-3.5 justify-center",
@@ -231,11 +227,6 @@ export function Sidebar({}: SidebarProps) {
                 {isExpanded && (
                   <div className="flex items-center justify-between flex-1">
                     <span className="text-base">{item.label}</span>
-                    {item.comingSoon && (
-                      <span className="text-sm bg-sidebar-accent text-sidebar-accent-foreground px-2.5 py-1 rounded-full">
-                        Soon
-                      </span>
-                    )}
                   </div>
                 )}
               </button>

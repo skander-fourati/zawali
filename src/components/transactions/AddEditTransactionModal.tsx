@@ -18,12 +18,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { INVESTMENT_TYPES } from "@/components/portfolio/investments";
 
 interface FamilyMember {
   id: string;
   name: string;
   color: string;
   status: string;
+}
+
+interface Investment {
+  id: string;
+  ticker: string;
+  investment_type: string;
 }
 
 interface AddEditTransactionModalProps {
@@ -61,21 +68,32 @@ export function AddEditTransactionModal({
     family_member_id: "",
     encord_expensable: false,
     transaction_type: "expense",
+    // Investment-specific fields
+    ticker: "",
+    investment_type: "",
+    investment_id: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
 
-  // Find Family Transfer category
+  // Find special categories
   const familyTransferCategory = categories.find(
     (cat) => cat.name === "Family Transfer",
   );
-  const isFamilyTransfer = formData.category_id === familyTransferCategory?.id;
+  const investmentCategory = categories.find(
+    (cat) => cat.name === "Investment",
+  );
 
-  // Fetch family members when modal opens
+  const isFamilyTransfer = formData.category_id === familyTransferCategory?.id;
+  const isInvestment = formData.category_id === investmentCategory?.id;
+
+  // Fetch family members and investments when modal opens
   useEffect(() => {
     if (isOpen && user) {
       fetchFamilyMembers();
+      fetchInvestments();
     }
   }, [isOpen, user]);
 
@@ -83,15 +101,39 @@ export function AddEditTransactionModal({
     try {
       const { data, error } = await supabase
         .from("family_members")
-        .select("*")
+        .select("id, name, color, status, created_at, updated_at, user_id")
         .eq("user_id", user?.id)
         .eq("status", "active")
         .order("name");
 
       if (error) throw error;
-      setFamilyMembers(data || []);
+      setFamilyMembers((data || []) as FamilyMember[]);
     } catch (error) {
       console.error("Error fetching family members:", error);
+      setFamilyMembers([]);
+    }
+  };
+
+  const fetchInvestments = async () => {
+    try {
+      // Try to fetch investments, but handle the case where the table doesn't exist
+      const { data, error } = await supabase.rpc("select", {
+        query:
+          "SELECT id, ticker, investment_type FROM investments WHERE user_id = $1 ORDER BY ticker",
+        params: [user?.id],
+      });
+
+      if (error) {
+        // If RPC doesn't work or table doesn't exist, just set empty array
+        console.log("Investments table not found or error:", error);
+        setInvestments([]);
+        return;
+      }
+
+      setInvestments((data || []) as Investment[]);
+    } catch (error) {
+      console.log("Error fetching investments (table may not exist):", error);
+      setInvestments([]);
     }
   };
 
@@ -110,6 +152,10 @@ export function AddEditTransactionModal({
         family_member_id: transaction.family_member_id || "none",
         encord_expensable: transaction.encord_expensable || false,
         transaction_type: transaction.transaction_type || "expense",
+        // Investment fields
+        ticker: transaction.investment?.ticker || "",
+        investment_type: transaction.investment?.investment_type || "",
+        investment_id: transaction.investment_id || "",
       });
     } else {
       // For new transactions, default to today's date
@@ -126,6 +172,9 @@ export function AddEditTransactionModal({
         family_member_id: "none",
         encord_expensable: false,
         transaction_type: "expense",
+        ticker: "",
+        investment_type: "",
+        investment_id: "",
       });
     }
   }, [transaction, isOpen]);
@@ -164,6 +213,35 @@ export function AddEditTransactionModal({
         family_member_id: "none",
         transaction_type: "expense", // Default back to expense for non-family transfers
       }));
+    }
+
+    // Clear investment fields if not Investment category
+    if (field === "category_id" && value !== investmentCategory?.id) {
+      setFormData((prev) => ({
+        ...prev,
+        ticker: "",
+        investment_type: "",
+        investment_id: "",
+      }));
+    }
+
+    // If ticker changes, check if it exists and populate investment_type
+    if (field === "ticker" && value) {
+      const existingInvestment = investments.find(
+        (inv) => inv.ticker.toLowerCase() === value.toLowerCase(),
+      );
+      if (existingInvestment) {
+        setFormData((prev) => ({
+          ...prev,
+          investment_type: existingInvestment.investment_type,
+          investment_id: existingInvestment.id,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          investment_id: "",
+        }));
+      }
     }
   };
 
@@ -212,9 +290,48 @@ export function AddEditTransactionModal({
       return;
     }
 
+    // Investment specific validation
+    if (isInvestment) {
+      if (!formData.ticker.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Ticker is required for investment transactions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!formData.investment_type) {
+        toast({
+          title: "Validation Error",
+          description:
+            "Investment type is required for investment transactions.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
+      let investmentId = formData.investment_id;
+
+      // Create or get investment record if this is an investment transaction
+      if (isInvestment) {
+        if (!investmentId) {
+          // For now, show a warning that investment feature isn't fully ready
+          toast({
+            title: "Investment Feature Coming Soon",
+            description:
+              "Investment tracking is being set up. Please run the database schema first.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const transactionData = {
         user_id: user.id,
         date: formData.date,
@@ -236,6 +353,8 @@ export function AddEditTransactionModal({
             : formData.family_member_id || null,
         encord_expensable: formData.encord_expensable,
         transaction_type: formData.transaction_type,
+        // Only include investment_id if the schema has been created
+        ...(investmentId && { investment_id: investmentId }),
       };
 
       let error;
@@ -381,6 +500,58 @@ export function AddEditTransactionModal({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Investment Fields (conditional) */}
+          {isInvestment && (
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="ticker">Ticker Symbol</Label>
+                <Input
+                  id="ticker"
+                  value={formData.ticker}
+                  onChange={(e) =>
+                    handleInputChange("ticker", e.target.value.toUpperCase())
+                  }
+                  placeholder="e.g., AAPL, VTSAX"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="investment_type">Investment Type</Label>
+                <Select
+                  value={formData.investment_type}
+                  onValueChange={(value) =>
+                    handleInputChange("investment_type", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select investment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INVESTMENT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="col-span-2">
+                <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded">
+                  <strong>Note:</strong> Investment tracking requires database
+                  setup. Please run the SQL schema first to enable full
+                  investment features.
+                </div>
+                {investments.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Existing tickers:{" "}
+                    {investments.map((inv) => inv.ticker).join(", ")}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Family Member (conditional) */}
           {isFamilyTransfer && (

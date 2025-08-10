@@ -100,6 +100,7 @@ export type Database = {
       };
       family_members: {
         Row: {
+          color: string | null;
           created_at: string;
           id: string;
           name: string;
@@ -108,6 +109,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          color?: string | null;
           created_at?: string;
           id?: string;
           name: string;
@@ -116,11 +118,75 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          color?: string | null;
           created_at?: string;
           id?: string;
           name?: string;
           status?: string;
           updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      investment_market_values: {
+        Row: {
+          id: string;
+          investment_id: string;
+          market_value: number;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          investment_id: string;
+          market_value: number;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          investment_id?: string;
+          market_value?: number;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "investment_market_values_investment_id_fkey";
+            columns: ["investment_id"];
+            isOneToOne: false;
+            referencedRelation: "investment_summary";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "investment_market_values_investment_id_fkey";
+            columns: ["investment_id"];
+            isOneToOne: false;
+            referencedRelation: "investments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      investments: {
+        Row: {
+          created_at: string | null;
+          id: string;
+          investment_type: string;
+          ticker: string;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          id?: string;
+          investment_type: string;
+          ticker: string;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          id?: string;
+          investment_type?: string;
+          ticker?: string;
+          updated_at?: string | null;
           user_id?: string;
         };
         Relationships: [];
@@ -166,6 +232,7 @@ export type Database = {
           exchange_rate: number | null;
           family_member_id: string | null;
           id: string;
+          investment_id: string | null;
           notes: string | null;
           transaction_type: string;
           trip_id: string | null;
@@ -185,6 +252,7 @@ export type Database = {
           exchange_rate?: number | null;
           family_member_id?: string | null;
           id?: string;
+          investment_id?: string | null;
           notes?: string | null;
           transaction_type: string;
           trip_id?: string | null;
@@ -204,6 +272,7 @@ export type Database = {
           exchange_rate?: number | null;
           family_member_id?: string | null;
           id?: string;
+          investment_id?: string | null;
           notes?: string | null;
           transaction_type?: string;
           trip_id?: string | null;
@@ -230,6 +299,20 @@ export type Database = {
             columns: ["family_member_id"];
             isOneToOne: false;
             referencedRelation: "family_members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_investment_id_fkey";
+            columns: ["investment_id"];
+            isOneToOne: false;
+            referencedRelation: "investment_summary";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_investment_id_fkey";
+            columns: ["investment_id"];
+            isOneToOne: false;
+            referencedRelation: "investments";
             referencedColumns: ["id"];
           },
           {
@@ -270,7 +353,21 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      investment_summary: {
+        Row: {
+          created_at: string | null;
+          current_market_value: number | null;
+          id: string | null;
+          investment_type: string | null;
+          market_value_updated_at: string | null;
+          ticker: string | null;
+          total_invested: number | null;
+          transaction_count: number | null;
+          updated_at: string | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       insert_default_trips: {
