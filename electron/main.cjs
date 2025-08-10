@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -11,27 +11,44 @@ autoUpdater.setFeedURL({
   owner: 'skander-fourati',
   repo: 'zawali',
   private: true,
-  token: process.env.GITHUB_TOKEN
+  token: 'your_github_token_here'  // Temporarily hardcode your token for testing
 });
 
 // Check for updates when app starts (after 3 seconds delay)
 app.whenReady().then(() => {
   setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify();
+    console.log('🚀 Auto-updater: Starting update check...');
+    try {
+      autoUpdater.checkForUpdatesAndNotify();
+    } catch (error) {
+      console.error('❌ Auto-updater: Failed to check for updates:', error);
+    }
   }, 3000);
 });
 
-// Auto-updater events (optional - for debugging)
+// Auto-updater events (with better logging)
 autoUpdater.on('checking-for-update', () => {
-  console.log('Checking for updates...');
+  console.log('🔍 Auto-updater: Checking for updates...');
 });
 
 autoUpdater.on('update-available', (info) => {
-  console.log('Update available:', info.version);
+  console.log('🎉 Auto-updater: Update available!', info.version);
 });
 
 autoUpdater.on('update-not-available', (info) => {
-  console.log('Update not available:', info.version);
+  console.log('ℹ️ Auto-updater: No updates available. Current:', info.version);
+});
+
+autoUpdater.on('error', (error) => {
+  console.error('❌ Auto-updater error:', error);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log(`📥 Auto-updater: Download ${Math.round(progressObj.percent)}%`);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('✅ Auto-updater: Update downloaded!', info.version);
 });
 
 const createWindow = () => {
@@ -67,6 +84,8 @@ const createWindow = () => {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
     console.log('✅ Zawali Finance app loaded successfully!');
+    console.log('📦 App version:', app.getVersion());
+    console.log('🔄 Auto-updater configured for: skander-fourati/zawali');
   });
 
   // Handle external links
