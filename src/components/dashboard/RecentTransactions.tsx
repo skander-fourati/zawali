@@ -9,7 +9,11 @@ interface Transaction {
   date: string;
   description: string;
   amount: number;
-  category: string;
+  category: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
   type: 'income' | 'expense';
 }
 
@@ -34,25 +38,12 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
     });
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      'Food': 'bg-orange-100 text-orange-800',
-      'Transportation': 'bg-blue-100 text-blue-800',
-      'Entertainment': 'bg-purple-100 text-purple-800',
-      'Utilities': 'bg-yellow-100 text-yellow-800',
-      'Shopping': 'bg-pink-100 text-pink-800',
-      'Health': 'bg-green-100 text-green-800',
-      'Income': 'bg-emerald-100 text-emerald-800',
-      'Investment': 'bg-indigo-100 text-indigo-800',
-      'Groceries': 'bg-lime-100 text-lime-800',
-      'Dining': 'bg-red-100 text-red-800',
-      'Bills': 'bg-slate-100 text-slate-800',
-      'Extras': 'bg-violet-100 text-violet-800',
-      'Personal Care': 'bg-cyan-100 text-cyan-800',
-      'Commute': 'bg-teal-100 text-teal-800',
-    };
-    
-    return colors[category] || 'bg-gray-100 text-gray-800';
+  const getCategoryName = (category: Transaction['category']) => {
+    return category?.name || 'Uncategorized';
+  };
+
+  const getCategoryColor = (category: Transaction['category']) => {
+    return category?.color || '#6b7280';
   };
 
   const handleViewAll = () => {
@@ -82,8 +73,12 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
         ) : (
           <div className="space-y-3 max-h-[600px] overflow-y-auto">
             {transactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-transparent hover:border-gray-200">
-                <div className={`p-2 rounded-full flex-shrink-0 ${transaction.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+              <div key={transaction.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-transparent hover:border-border/50">
+                <div className={`p-2 rounded-full flex-shrink-0 border ${
+                  transaction.type === 'income' 
+                    ? 'bg-success/20 border-success/40' 
+                    : 'bg-destructive/20 border-destructive/40'
+                }`}>
                   {transaction.type === 'income' ? (
                     <ArrowUpRight className="h-4 w-4 text-success" />
                   ) : (
@@ -101,9 +96,14 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     </span>
                     <Badge 
                       variant="secondary" 
-                      className={`text-xs flex-shrink-0 ${getCategoryColor(transaction.category)}`}
+                      className="text-xs flex-shrink-0 border font-medium"
+                      style={{
+                        backgroundColor: `${getCategoryColor(transaction.category)}20`,
+                        borderColor: getCategoryColor(transaction.category),
+                        color: getCategoryColor(transaction.category)
+                      }}
                     >
-                      {transaction.category}
+                      {getCategoryName(transaction.category)}
                     </Badge>
                   </div>
                 </div>
