@@ -10,7 +10,7 @@ autoUpdater.setFeedURL({
   provider: 'github',
   owner: 'skander-fourati',
   repo: 'zawali',
-  private: true,
+  private: false,
   token: 'your_github_token_here'  // Temporarily hardcode your token for testing
 });
 
