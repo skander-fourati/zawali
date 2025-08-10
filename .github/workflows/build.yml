@@ -1,10 +1,9 @@
 name: Build and Release Desktop App
 
-# Separate triggers to avoid double-builds
+# Fixed: Combine push triggers into one block
 on:
   push:
     branches: [ main ]
-  push:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
