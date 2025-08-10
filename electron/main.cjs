@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -40,6 +40,12 @@ autoUpdater.on('update-not-available', (info) => {
 
 autoUpdater.on('error', (error) => {
   console.error('❌ Auto-updater error:', error);
+  
+  // If code signing error, show manual update dialog
+  if (error.message.includes('Could not get code signature')) {
+    console.log('📋 Auto-updater: Showing manual update dialog due to code signing...');
+    showManualUpdateDialog();
+  }
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
@@ -48,7 +54,54 @@ autoUpdater.on('download-progress', (progressObj) => {
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('✅ Auto-updater: Update downloaded!', info.version);
+  
+  // Show dialog asking user if they want to install
+  showUpdateReadyDialog(info.version);
 });
+
+// Show dialog when update is ready to install
+function showUpdateReadyDialog(version) {
+  if (!mainWindow) return;
+  
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type: 'info',
+    title: 'Update Ready',
+    message: `Zawali ${version} is ready to install!`,
+    detail: 'The update has been downloaded. Would you like to restart and install it now?',
+    buttons: ['Install Now', 'Later'],
+    defaultId: 0
+  });
+
+  if (choice === 0) {
+    console.log('🔄 Auto-updater: User chose to install update now');
+    try {
+      autoUpdater.quitAndInstall();
+    } catch (error) {
+      console.error('❌ Auto-updater: Failed to install update:', error);
+      showManualUpdateDialog();
+    }
+  } else {
+    console.log('⏰ Auto-updater: User chose to install update later');
+  }
+}
+
+// Show manual update dialog when auto-install fails
+function showManualUpdateDialog() {
+  if (!mainWindow) return;
+  
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type: 'info',
+    title: 'Update Available',
+    message: 'A new version of Zawali is available!',
+    detail: 'Please download the latest version from GitHub releases to get the newest features and fixes.',
+    buttons: ['Open GitHub Releases', 'Later'],
+    defaultId: 0
+  });
+
+  if (choice === 0) {
+    shell.openExternal('https://github.com/skander-fourati/zawali/releases/latest');
+  }
+}
 
 const createWindow = () => {
   // Create the browser window
