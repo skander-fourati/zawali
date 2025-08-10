@@ -19,4 +19,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Important for Electron: set base to relative paths
+  base: "./",
+  build: {
+    // Electron needs relative paths, not absolute
+    outDir: "dist",
+    // Make sure assets are properly referenced
+    assetsDir: "assets",
+  },
 }));
