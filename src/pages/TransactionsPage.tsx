@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -481,6 +481,12 @@ const TransactionsPage: React.FC = () => {
     return category?.name || 'Unknown';
   };
 
+  const getCategoryColor = (categoryId: string | null) => {
+    if (!categoryId) return '#6b7280';
+    const category = categories.find((c: any) => c.id === categoryId);
+    return category?.color || '#6b7280';
+  };
+
   const getAccountName = (accountId: string | null) => {
     if (!accountId) return 'Unknown Account';
     const account = accounts.find((a: any) => a.id === accountId);
@@ -511,100 +517,95 @@ const TransactionsPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header with zawali personality */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">All Transactions</h1>
-            <p className="text-muted-foreground text-sm">Your complete financial story, transaction by transaction</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedTransactionIds.size > 0 && (
-            <>
-              <Button 
-                variant="outline"
-                onClick={handleBulkEdit}
-                className="flex items-center gap-2"
-              >
-                <Edit3 className="h-4 w-4" />
-                Bulk Edit ({selectedTransactionIds.size})
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={handleBulkDelete}
-                className="flex items-center gap-2 text-red-400 hover:text-red-300"
-              >
-                <Trash className="h-4 w-4" />
-                Bulk Delete ({selectedTransactionIds.size})
-              </Button>
-              <Button 
-                variant="ghost"
-                onClick={clearAllSelections}
-                className="flex items-center gap-2 text-muted-foreground"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </Button>
-            </>
-          )}
-          <Button 
-            onClick={handleAddTransaction}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Transaction
-          </Button>
-        </div>
-      </div>
-
-      {/* Keyboard shortcuts info */}
-      {selectedTransactionIds.size > 0 && (
-        <div className="mb-4 p-3 bg-gray-800 border border-gray-600 rounded-lg">
-          <div className="text-sm text-gray-300">
-            <span className="font-medium">Selection tips:</span>
-            <span className="ml-2">Hold <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Shift</kbd> and click to select ranges</span>
-            <span className="ml-4">Hold <kbd className="px-1 py-0.5 bg-gray-700 rounded text-xs">Ctrl/Cmd</kbd> and click to select individual items</span>
-            {(isShiftPressed || isCtrlPressed) && (
-              <span className="ml-4 text-primary font-medium">
-                {isShiftPressed && "Shift"} {isShiftPressed && isCtrlPressed && "+"} {isCtrlPressed && "Ctrl/Cmd"} active
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Search and Filters */}
-      <Card className="mb-6">
-        <CardContent className="p-4">
+    <div className="min-h-screen bg-background pl-4 pr-4 py-6">
+      <div className="max-w-[calc(100vw-280px)] mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">All Transactions</h1>
+              <p className="text-sm text-muted-foreground">
+                Showing {filteredAndSortedTransactions.length} of {transactions.length} transactions
+                {selectedTransactionIds.size > 0 && (
+                  <span className="text-primary ml-2">• {selectedTransactionIds.size} selected</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedTransactionIds.size > 0 && (
+              <>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkEdit}
+                  className="flex items-center gap-2"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit ({selectedTransactionIds.size})
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash className="h-4 w-4" />
+                  Delete ({selectedTransactionIds.size})
+                </Button>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAllSelections}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              </>
+            )}
+            <Button 
+              onClick={handleAddTransaction}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Transaction
+            </Button>
+          </div>
+        </div>
+
+        {/* Compact Search and Filters */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search transactions by description..."
+                placeholder="Search by description..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-9"
               />
             </div>
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center gap-2"
             >
               <Filter className="h-4 w-4" />
               Filters
               {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
-                <Badge variant="secondary" className="ml-2">
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
                   {[categoryFilter !== 'all', accountFilter !== 'all', tripFilter !== 'all', familyMemberFilter !== 'all'].filter(Boolean).length}
                 </Badge>
               )}
@@ -612,144 +613,152 @@ const TransactionsPage: React.FC = () => {
           </div>
 
           {showFilters && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-4 border-t mt-4">
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category: any) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Card className="p-3">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-3">
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((category: any) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: category.color }}
+                            />
+                            {category.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Select value={accountFilter} onValueChange={setAccountFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Accounts" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Accounts</SelectItem>
-                    {accounts.map((account: any) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={accountFilter} onValueChange={setAccountFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All Accounts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Accounts</SelectItem>
+                      {accounts.map((account: any) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Select value={tripFilter} onValueChange={setTripFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Trips" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Trips</SelectItem>
-                    {trips.map((trip: any) => (
-                      <SelectItem key={trip.id} value={trip.id}>
-                        {trip.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={tripFilter} onValueChange={setTripFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All Trips" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Trips</SelectItem>
+                      {trips.map((trip: any) => (
+                        <SelectItem key={trip.id} value={trip.id}>
+                          {trip.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Select value={familyMemberFilter} onValueChange={setFamilyMemberFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Family" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Family Members</SelectItem>
-                    {familyMembers.map((member: any) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full border"
-                            style={{ backgroundColor: member.color }}
-                          />
-                          {member.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={familyMemberFilter} onValueChange={setFamilyMemberFilter}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All Family" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Family Members</SelectItem>
+                      {familyMembers.map((member: any) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: member.color }}
+                            />
+                            {member.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Button 
-                  variant="outline" 
-                  onClick={clearFilters}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear
-                </Button>
-              </div>
-
-              {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
-                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
-                  <span className="text-sm text-muted-foreground">Active filters:</span>
-                  {categoryFilter !== 'all' && (
-                    <Badge variant="outline" className="text-xs">
-                      Category: {getCategoryName(categoryFilter)}
-                    </Badge>
-                  )}
-                  {accountFilter !== 'all' && (
-                    <Badge variant="outline" className="text-xs">
-                      Account: {getAccountName(accountFilter)}
-                    </Badge>
-                  )}
-                  {tripFilter !== 'all' && (
-                    <Badge variant="outline" className="text-xs">
-                      Trip: {getTripName(tripFilter)}
-                    </Badge>
-                  )}
-                  {familyMemberFilter !== 'all' && (
-                    <Badge variant="outline" className="text-xs">
-                      Family: {getFamilyMemberName(familyMemberFilter)}
-                    </Badge>
-                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={clearFilters}
+                    className="flex items-center gap-2 h-9"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </Button>
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Results */}
-      <div className="mb-4 text-sm text-muted-foreground flex items-center justify-between">
-        <div>
-          Showing {paginatedTransactions.length} of {filteredAndSortedTransactions.length} transactions
-          {filteredAndSortedTransactions.length !== transactions.length && (
-            <span> (filtered from {transactions.length} total)</span>
+                {/* Active filters indicators */}
+                {(categoryFilter !== 'all' || accountFilter !== 'all' || tripFilter !== 'all' || familyMemberFilter !== 'all') && (
+                  <div className="flex flex-wrap gap-1 pt-2 border-t">
+                    {categoryFilter !== 'all' && (
+                      <Badge variant="outline" className="text-xs h-5 px-2">
+                        Category: {getCategoryName(categoryFilter)}
+                      </Badge>
+                    )}
+                    {accountFilter !== 'all' && (
+                      <Badge variant="outline" className="text-xs h-5 px-2">
+                        Account: {getAccountName(accountFilter)}
+                      </Badge>
+                    )}
+                    {tripFilter !== 'all' && (
+                      <Badge variant="outline" className="text-xs h-5 px-2">
+                        Trip: {getTripName(tripFilter)}
+                      </Badge>
+                    )}
+                    {familyMemberFilter !== 'all' && (
+                      <Badge variant="outline" className="text-xs h-5 px-2">
+                        Family: {getFamilyMemberName(familyMemberFilter)}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
+
+        {/* Keyboard shortcuts info */}
         {selectedTransactionIds.size > 0 && (
-          <div className="text-primary font-medium">
-            {selectedTransactionIds.size} transaction{selectedTransactionIds.size !== 1 ? 's' : ''} selected
+          <div className="mb-3 p-2 bg-muted/50 border border-border rounded-md">
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium">Tips:</span>
+              <span className="ml-2">Hold <kbd className="px-1 py-0.5 bg-background rounded text-xs border">Shift</kbd> + click for ranges</span>
+              <span className="ml-3">Hold <kbd className="px-1 py-0.5 bg-background rounded text-xs border">Ctrl</kbd> + click for individual selection</span>
+              {(isShiftPressed || isCtrlPressed) && (
+                <span className="ml-3 text-primary font-medium">
+                  {isShiftPressed && "Shift"} {isShiftPressed && isCtrlPressed && "+"} {isCtrlPressed && "Ctrl"} active
+                </span>
+              )}
+            </div>
           </div>
         )}
-      </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {paginatedTransactions.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <div className="text-6xl mb-4">📊</div>
-              <p className="text-lg">No transactions found</p>
-              <p className="text-sm mt-2">
-                {transactions.length === 0 
-                  ? "Upload some CSV files from the dashboard to see transactions here."
-                  : "Try adjusting your search or filters."}
-              </p>
-            </div>
-          ) : (
+        {/* Streamlined Table */}
+        {paginatedTransactions.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-3">📊</div>
+            <p className="text-lg font-medium">No transactions found</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {transactions.length === 0 
+                ? "Upload some CSV files from the dashboard to see transactions here."
+                : "Try adjusting your search or filters."}
+            </p>
+          </div>
+        ) : (
+          <div className="border border-border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b">
+                <thead className="bg-muted/50 border-b border-border sticky top-0 z-10">
                   <tr>
-                    <th className="text-left p-4 font-semibold">
+                    <th className="text-left p-3 font-medium">
                       <Checkbox
                         checked={allPageSelected}
                         indeterminate={somePageSelected && !allPageSelected}
@@ -757,48 +766,47 @@ const TransactionsPage: React.FC = () => {
                       />
                     </th>
                     <th 
-                      className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/50"
+                      className="text-left p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
                       onClick={() => handleSort('date')}
                     >
                       Date {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
                     <th 
-                      className="text-left p-4 font-semibold cursor-pointer hover:bg-muted/50"
+                      className="text-left p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
                       onClick={() => handleSort('description')}
                     >
                       Description {sortField === 'description' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th className="text-left p-4 font-semibold">Category</th>
-                    <th className="text-left p-4 font-semibold">Account</th>
-                    <th className="text-left p-4 font-semibold">Trip</th>
-                    <th className="text-left p-4 font-semibold">Family</th>
-                    <th className="text-left p-4 font-semibold">Encord</th>
+                    <th className="text-left p-3 font-medium">Category</th>
+                    <th className="text-left p-3 font-medium">Account</th>
+                    <th className="text-left p-3 font-medium">Trip</th>
+                    <th className="text-left p-3 font-medium">Family</th>
+                    <th className="text-left p-3 font-medium">Encord</th>
                     <th 
-                      className="text-right p-4 font-semibold cursor-pointer hover:bg-muted/50"
+                      className="text-right p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
                       onClick={() => handleSort('amount_gbp')}
                     >
                       Amount (GBP) {sortField === 'amount_gbp' && (sortDirection === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th className="text-center p-4 font-semibold">Actions</th>
+                    <th className="text-center p-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedTransactions.map((transaction: any, index: number) => (
                     <tr 
                       key={transaction.id} 
-                      className={`border-b hover:bg-muted/50 cursor-pointer transition-colors ${
+                      className={`border-b border-border hover:bg-muted/30 cursor-pointer transition-colors ${
                         selectedTransactionIds.has(transaction.id) 
-                          ? 'bg-primary/10' 
+                          ? 'bg-primary/5 border-primary/20' 
                           : ''
                       }`}
                       onClick={(e) => {
-                        // Don't trigger selection if clicking on action buttons
                         if (!(e.target as HTMLElement).closest('.action-buttons')) {
                           handleTransactionSelect(transaction.id, index);
                         }
                       }}
                     >
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedTransactionIds.has(transaction.id)}
                           onCheckedChange={() => 
@@ -806,32 +814,48 @@ const TransactionsPage: React.FC = () => {
                           }
                         />
                       </td>
-                      <td className="p-4 text-sm">
-                        {new Date(transaction.date).toLocaleDateString()}
+                      <td className="p-3 text-sm text-muted-foreground">
+                        {new Date(transaction.date).toLocaleDateString('en-GB', { 
+                          day: 'numeric', 
+                          month: 'short',
+                          year: '2-digit'
+                        })}
                       </td>
-                      <td className="p-4 text-sm">
-                        <div className="max-w-64 truncate" title={transaction.description}>
+                      <td className="p-3 text-sm">
+                        <div className="max-w-72 truncate font-medium" title={transaction.description}>
                           {transaction.description || 'No description'}
                         </div>
                       </td>
-                      <td className="p-4 text-sm">
-                        <Badge variant="secondary">{getCategoryName(transaction.category_id)}</Badge>
+                      <td className="p-3 text-sm">
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs font-medium border"
+                          style={{
+                            backgroundColor: `${getCategoryColor(transaction.category_id)}20`,
+                            borderColor: getCategoryColor(transaction.category_id),
+                            color: getCategoryColor(transaction.category_id)
+                          }}
+                        >
+                          {getCategoryName(transaction.category_id)}
+                        </Badge>
                       </td>
-                      <td className="p-4 text-sm">
+                      <td className="p-3 text-sm text-muted-foreground">
                         {getAccountName(transaction.account_id)}
                       </td>
-                      <td className="p-4 text-sm">
+                      <td className="p-3 text-sm">
                         {getTripName(transaction.trip_id) ? (
-                          <Badge variant="outline">{getTripName(transaction.trip_id)}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {getTripName(transaction.trip_id)}
+                          </Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </td>
-                      <td className="p-4 text-sm">
+                      <td className="p-3 text-sm">
                         {getFamilyMemberName(transaction.family_member_id) ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <div 
-                              className="w-3 h-3 rounded-full border"
+                              className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: transaction.family_member?.color || '#gray' }}
                             />
                             <span className="text-xs">{getFamilyMemberName(transaction.family_member_id)}</span>
@@ -840,25 +864,27 @@ const TransactionsPage: React.FC = () => {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </td>
-                      <td className="p-4 text-sm">
+                      <td className="p-3 text-sm">
                         {transaction.encord_expensable ? (
-                          <Badge className="bg-green-500/20 text-green-400 border-green-500/50">Yes</Badge>
+                          <Badge variant="secondary" className="text-xs bg-success/20 text-success border-success/40">
+                            Yes
+                          </Badge>
                         ) : (
-                          <Badge variant="secondary">No</Badge>
+                          <Badge variant="secondary" className="text-xs">No</Badge>
                         )}
                       </td>
-                      <td className="p-4 text-sm text-right font-mono">
-                        <span className={`font-semibold ${(transaction.amount_gbp || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <td className="p-3 text-sm text-right font-mono">
+                        <span className={`font-semibold ${(transaction.amount_gbp || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
                           £{((transaction.amount_gbp || 0)).toFixed(2)}
                         </span>
                         {transaction.currency !== 'GBP' && transaction.amount && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground mt-0.5">
                             {transaction.currency} {transaction.amount.toFixed(2)}
                           </div>
                         )}
                       </td>
-                      <td className="p-4 text-center">
-                        <div className="flex gap-2 justify-center action-buttons">
+                      <td className="p-3 text-center">
+                        <div className="flex gap-1 justify-center action-buttons">
                           <Button 
                             size="sm" 
                             variant="ghost" 
@@ -866,9 +892,9 @@ const TransactionsPage: React.FC = () => {
                               e.stopPropagation();
                               handleEdit(transaction);
                             }}
-                            className="h-8 w-8 p-0"
+                            className="h-7 w-7 p-0 hover:bg-muted"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
@@ -877,9 +903,9 @@ const TransactionsPage: React.FC = () => {
                               e.stopPropagation();
                               handleDelete(transaction);
                             }}
-                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </td>
@@ -888,78 +914,84 @@ const TransactionsPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-4 mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <span className="text-sm">Page {currentPage} of {totalPages}</span>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+        {/* Compact Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center mt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
 
-      {/* Modals */}
-      <AddEditTransactionModal
-        isOpen={isAddModalOpen || !!editingTransaction}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingTransaction(null);
-        }}
-        transaction={editingTransaction}
-        onSave={handleModalSave}
-        categories={categories}
-        accounts={accounts}
-        trips={trips}
-      />
-
-      <BulkEditTransactionModal
-        isOpen={isBulkEditModalOpen}
-        onClose={() => setIsBulkEditModalOpen(false)}
-        onSave={handleBulkEditSave}
-        selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
-        categories={categories}
-        accounts={accounts}
-        trips={trips}
-        familyMembers={familyMembers}
-      />
-
-      <BulkDeleteConfirmDialog
-        isOpen={isBulkDeleteModalOpen}
-        onClose={() => setIsBulkDeleteModalOpen(false)}
-        onConfirm={handleBulkDeleteConfirm}
-        selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
-        loading={bulkDeleteLoading}
-      />
-
-      <DeleteConfirmDialog
-        isOpen={!!deletingTransaction}
-        onClose={() => setDeletingTransaction(null)}
-        onConfirm={confirmDelete}
-        transactionDescription={deletingTransaction?.description || ''}
-      />
-
-      {/* Zawali Toast Message */}
-      {zawaliMessage && (
-        <ZawaliToast 
-          message={zawaliMessage}
-          onDismiss={() => setZawaliMessage(null)}
+        {/* Modals */}
+        <AddEditTransactionModal
+          isOpen={isAddModalOpen || !!editingTransaction}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingTransaction(null);
+          }}
+          transaction={editingTransaction}
+          onSave={handleModalSave}
+          categories={categories}
+          accounts={accounts}
+          trips={trips}
         />
-      )}
+
+        <BulkEditTransactionModal
+          isOpen={isBulkEditModalOpen}
+          onClose={() => setIsBulkEditModalOpen(false)}
+          onSave={handleBulkEditSave}
+          selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
+          categories={categories}
+          accounts={accounts}
+          trips={trips}
+          familyMembers={familyMembers}
+        />
+
+        <BulkDeleteConfirmDialog
+          isOpen={isBulkDeleteModalOpen}
+          onClose={() => setIsBulkDeleteModalOpen(false)}
+          onConfirm={handleBulkDeleteConfirm}
+          selectedTransactions={transactions.filter(t => selectedTransactionIds.has(t.id))}
+          loading={bulkDeleteLoading}
+        />
+
+        <DeleteConfirmDialog
+          isOpen={!!deletingTransaction}
+          onClose={() => setDeletingTransaction(null)}
+          onConfirm={confirmDelete}
+          transactionDescription={deletingTransaction?.description || ''}
+        />
+
+        {/* Zawali Toast Message */}
+        {zawaliMessage && (
+          <ZawaliToast 
+            message={zawaliMessage}
+            onDismiss={() => setZawaliMessage(null)}
+          />
+        )}
+      </div>
     </div>
   );
 };
