@@ -13,6 +13,9 @@ autoUpdater.setFeedURL({
   private: false
 });
 
+// Clean up auto-updater logging
+autoUpdater.logger = null; // Disable verbose logging
+
 // Check for updates when app starts (after 3 seconds delay)
 app.whenReady().then(() => {
   setTimeout(() => {
@@ -39,7 +42,7 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('error', (error) => {
-  console.error('❌ Auto-updater error:', error);
+  console.error('❌ Auto-updater error:', error.message);
   
   // If code signing error, try to continue anyway - sometimes it still works
   if (error.message.includes('Could not get code signature')) {
@@ -49,7 +52,11 @@ autoUpdater.on('error', (error) => {
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
-  console.log(`📥 Auto-updater: Download ${Math.round(progressObj.percent)}%`);
+  // Only show progress every 25% to reduce spam
+  const percent = Math.round(progressObj.percent);
+  if (percent % 25 === 0 || percent > 95) {
+    console.log(`📥 Auto-updater: Download ${percent}%`);
+  }
 });
 
 autoUpdater.on('update-downloaded', (info) => {
@@ -74,15 +81,32 @@ function showUpdateReadyDialog(version) {
 
   if (choice === 0) {
     console.log('🔄 Auto-updater: User chose to install update now');
-    try {
-      // Try auto-install first - sometimes works even with code signing issues
-      autoUpdater.quitAndInstall();
-    } catch (error) {
-      console.error('❌ Auto-updater: Failed to install update:', error);
-      showSimpleUpdateDialog(version);
-    }
+    attemptAutoInstall(version);
   } else {
     console.log('⏰ Auto-updater: User chose to install update later');
+  }
+}
+
+// Attempt auto-install with timeout fallback
+function attemptAutoInstall(version) {
+  console.log('🔧 Auto-updater: Attempting automatic installation...');
+  
+  // Set a timeout to detect if quitAndInstall() fails silently
+  const timeoutId = setTimeout(() => {
+    console.log('⏰ Auto-updater: Auto-install timed out, showing manual option');
+    showSimpleUpdateDialog(version);
+  }, 5000); // 5 second timeout
+
+  try {
+    // Try auto-install first - sometimes works even with code signing issues
+    autoUpdater.quitAndInstall();
+    
+    // If we get here, clear the timeout (app should be restarting)
+    clearTimeout(timeoutId);
+  } catch (error) {
+    console.error('❌ Auto-updater: Auto-install failed:', error.message);
+    clearTimeout(timeoutId);
+    showSimpleUpdateDialog(version);
   }
 }
 
@@ -92,16 +116,17 @@ function showSimpleUpdateDialog(version) {
   
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type: 'info',
-    title: 'Update Available',
-    message: `Zawali ${version} is available!`,
-    detail: `A new version has been downloaded. Please quit the app and reinstall Zawali to get the latest updates.`,
-    buttons: ['Download New Version', 'OK'],
+    title: 'Download Required',
+    message: `Please download Zawali ${version} manually`,
+    detail: `The automatic update couldn't install. Click "Download" to get the latest version from GitHub.`,
+    buttons: ['Download Update', 'Maybe Later'],
     defaultId: 0
   });
 
   if (choice === 0) {
+    console.log('🌐 Auto-updater: Opening download link for user');
     // Open the direct download link for the DMG
-    shell.openExternal('https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-' + version + '-universal.dmg');
+    shell.openExternal(`https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-${version}-universal.dmg`);
   }
 }
 
