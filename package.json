@@ -1,14 +1,70 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "zawali",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "main": "electron/main.cjs",
   "type": "module",
+  "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:8080 && NODE_ENV=development electron .\"",
+    "electron:build": "node scripts/build-electron.js && electron-builder",
+    "electron:build:mac": "node scripts/build-electron.js && electron-builder --mac",
+    "electron:dist": "node scripts/build-electron.js && electron-builder --publish=always"
+  },
+  "build": {
+    "appId": "com.skander.zawali",
+    "productName": "Zawali Finance",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/main.cjs",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "icon": "public/favicon/web-app-manifest-512x512.png"
+    },
+    "dmg": {
+      "title": "Zawali Finance Installer",
+      "backgroundColor": "#1a1a1a",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "skander-fourati",
+      "repo": "zawali",
+      "private": true
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -60,7 +116,8 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -79,6 +136,10 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
   }
 }
