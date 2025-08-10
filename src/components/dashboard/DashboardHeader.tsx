@@ -69,13 +69,13 @@ export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded 
         <div className="flex flex-col sm:flex-row gap-3 min-w-fit">
           <TransactionUploadButton 
             onTransactionsUploaded={onTransactionsUploaded}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105"
+            className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105 flex items-center justify-center"
           />
           
           <Button 
             variant="secondary"
             onClick={onAddTransactionClick}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105 zawali-bounce"
+            className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105 zawali-bounce flex items-center justify-center"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Transaction
