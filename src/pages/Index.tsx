@@ -13,15 +13,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { chartCalculations } from "@/lib/chartCalculations";
 
 // Subtle Zawali Message Component - only appears occasionally
-const ZawaliToast = ({ message, type, onDismiss }: { 
+const ZawaliToast = ({
+  message,
+  type,
+  onDismiss,
+}: {
   message: string;
-  type: 'success' | 'info' | 'warning';
+  type: "success" | "info" | "warning";
   onDismiss: () => void;
 }) => {
   const icons = {
-    success: '🎉',
-    info: '💡', 
-    warning: '😅'
+    success: "🎉",
+    info: "💡",
+    warning: "😅",
   };
 
   return (
@@ -31,7 +35,7 @@ const ZawaliToast = ({ message, type, onDismiss }: {
         <div className="flex-1">
           <p className="text-gray-200 text-sm">{message}</p>
         </div>
-        <button 
+        <button
           onClick={onDismiss}
           className="text-gray-400 hover:text-gray-200 text-sm"
         >
@@ -53,7 +57,7 @@ const Index = () => {
     trips,
     loading: transactionsLoading,
     getFamilyBalances,
-    refetch
+    refetch,
   } = useTransactions();
 
   // Transaction modal state
@@ -62,30 +66,33 @@ const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Subtle zawali personality - only show occasionally
-  const [zawaliMessage, setZawaliMessage] = useState<{text: string, type: 'success' | 'info' | 'warning'} | null>(null);
+  const [zawaliMessage, setZawaliMessage] = useState<{
+    text: string;
+    type: "success" | "info" | "warning";
+  } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      navigate("/auth");
     }
   }, [user, loading, navigate]);
 
   const handleTransactionsUploaded = () => {
-    setRefreshKey(prev => prev + 1);
-    
-    if (typeof refetch === 'function') {
+    setRefreshKey((prev) => prev + 1);
+
+    if (typeof refetch === "function") {
       refetch();
     }
-    
+
     // Subtle zawali humor - only sometimes
     if (Math.random() < 0.3) {
       setZawaliMessage({
         text: "More transactions uploaded! Your financial story continues... 📊",
-        type: 'success'
+        type: "success",
       });
       setTimeout(() => setZawaliMessage(null), 4000);
     }
-    
+
     toast({
       title: "Success!",
       description: "Transactions uploaded successfully. Dashboard updated.",
@@ -95,12 +102,12 @@ const Index = () => {
   const handleAddTransactionClick = () => {
     setEditingTransaction(null);
     setIsTransactionModalOpen(true);
-    
-    // Subtle zawali humor - only sometimes  
+
+    // Subtle zawali humor - only sometimes
     if (Math.random() < 0.2) {
       setZawaliMessage({
         text: "Adding another transaction... the plot thickens! 😅",
-        type: 'info'
+        type: "info",
       });
       setTimeout(() => setZawaliMessage(null), 3000);
     }
@@ -110,21 +117,22 @@ const Index = () => {
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
     refetch();
-    setRefreshKey(prev => prev + 1);
-    
+    setRefreshKey((prev) => prev + 1);
+
     // Subtle zawali message - only sometimes
     if (Math.random() < 0.25) {
       const messages = [
         "Transaction saved! Your financial journey continues.",
         "Another entry in the books! 📖",
         "Successfully logged your latest financial adventure.",
-        "Your transaction has been documented for posterity."
+        "Your transaction has been documented for posterity.",
       ];
-      
-      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+
+      const randomMessage =
+        messages[Math.floor(Math.random() * messages.length)];
       setZawaliMessage({
         text: randomMessage,
-        type: 'success'
+        type: "success",
       });
       setTimeout(() => setZawaliMessage(null), 3500);
     }
@@ -146,57 +154,64 @@ const Index = () => {
   const lastMonthStats = chartCalculations.getLastMonthStats(transactions);
   const totalSavings = chartCalculations.getTotalSavings(transactions);
   const totalInvestments = chartCalculations.getTotalInvestments(transactions);
-  const averageIncome12Months = chartCalculations.get12MonthAverageIncome(transactions);
+  const averageIncome12Months =
+    chartCalculations.get12MonthAverageIncome(transactions);
 
   // Family balances logic from existing hook
   const familyBalances = getFamilyBalances();
-  const familyTransferCategory = categories.find(cat => cat.name === 'Family Transfer');
+  const familyTransferCategory = categories.find(
+    (cat) => cat.name === "Family Transfer",
+  );
   const recentFamilyTransactions = transactions
-    .filter(t => t.category?.id === familyTransferCategory?.id && t.family_member_id)
+    .filter(
+      (t) =>
+        t.category?.id === familyTransferCategory?.id && t.family_member_id,
+    )
     .slice(0, 10) // Increased from 5 to 10
-    .map(t => ({
+    .map((t) => ({
       id: t.id,
       date: t.date,
       description: t.description,
       amount_gbp: t.amount_gbp,
       family_member: {
-        name: t.family_member?.name || 'Unknown',
-        color: t.family_member?.color || '#gray'
+        name: t.family_member?.name || "Unknown",
+        color: t.family_member?.color || "#gray",
       },
       account: {
-        name: t.account?.name || 'Unknown Account'
-      }
+        name: t.account?.name || "Unknown Account",
+      },
     }));
 
   // Recent transactions for display (increased limit)
   const recentTransactionsForDisplay = transactions
-    .filter(t => 
-      // Apply same base filtering as chart calculations
-      t.encord_expensable !== true && 
-      t.category?.name !== 'Transfers' && 
-      t.category?.name !== 'Family Transfer' &&
-      t.transaction_type !== 'transfer'
+    .filter(
+      (t) =>
+        // Apply same base filtering as chart calculations
+        t.encord_expensable !== true &&
+        t.category?.name !== "Transfers" &&
+        t.category?.name !== "Family Transfer" &&
+        t.transaction_type !== "transfer",
     )
     .slice(0, 15) // Increased from 5 to 15
-    .map(t => ({
+    .map((t) => ({
       id: t.id,
       date: t.date,
       description: t.description,
       amount: t.amount_gbp,
-      category: t.category?.name || 'Uncategorized',
-      type: t.transaction_type as 'income' | 'expense',
+      category: t.category?.name || "Uncategorized",
+      type: t.transaction_type as "income" | "expense",
     }));
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6 max-w-7xl">
-          <DashboardHeader 
+          <DashboardHeader
             onAddTransactionClick={handleAddTransactionClick}
             onTransactionsUploaded={handleTransactionsUploaded}
           />
-          
-          <MetricsCards 
+
+          <MetricsCards
             key={`metrics-${refreshKey}`}
             totalSavings={totalSavings}
             totalInvestments={totalInvestments}
@@ -206,17 +221,17 @@ const Index = () => {
             lastMonthExpenses={lastMonthStats.lastMonthExpenses}
             averageIncome12Months={averageIncome12Months}
           />
-          
+
           {/* Expanded Recent Transactions and Family Balances - Single Column on Large Screens */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
             <div className="xl:col-span-1">
-              <RecentTransactions 
+              <RecentTransactions
                 key={`transactions-${refreshKey}`}
-                transactions={recentTransactionsForDisplay} 
+                transactions={recentTransactionsForDisplay}
               />
             </div>
             <div className="xl:col-span-1">
-              <FamilyBalances 
+              <FamilyBalances
                 balances={familyBalances}
                 recentTransactions={recentFamilyTransactions}
               />
@@ -235,7 +250,7 @@ const Index = () => {
 
           {/* Zawali toast message - appears occasionally */}
           {zawaliMessage && (
-            <ZawaliToast 
+            <ZawaliToast
               message={zawaliMessage.text}
               type={zawaliMessage.type}
               onDismiss={() => setZawaliMessage(null)}

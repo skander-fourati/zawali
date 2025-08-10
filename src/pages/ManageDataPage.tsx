@@ -16,8 +16,12 @@ const ZawaliManageHeader = ({ user }: { user: any }) => (
     <div className="flex items-center gap-4 mb-4">
       <div className="text-4xl zawali-float">⚙️</div>
       <div>
-        <h1 className="text-3xl font-bold text-zawali-gradient">Organize Your Financial Chaos</h1>
-        <p className="text-muted-foreground">Because even broke people need organization</p>
+        <h1 className="text-3xl font-bold text-zawali-gradient">
+          Organize Your Financial Chaos
+        </h1>
+        <p className="text-muted-foreground">
+          Because even broke people need organization
+        </p>
       </div>
     </div>
   </div>
@@ -28,14 +32,20 @@ const ZawaliWelcomeCard = ({ user }: { user: any }) => (
     <CardContent className="p-6">
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg zawali-bounce">
-          {user?.user_metadata?.display_name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || "Z"}
+          {user?.user_metadata?.display_name?.charAt(0)?.toUpperCase() ||
+            user?.email?.charAt(0)?.toUpperCase() ||
+            "Z"}
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-semibold text-foreground">Welcome to Data Management Central</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            Welcome to Data Management Central
+          </h2>
           <p className="text-muted-foreground text-sm">
-            Manage categories, trips, accounts, and family members to better organize your transactions.
+            Manage categories, trips, accounts, and family members to better
+            organize your transactions.
             <span className="block text-xs italic mt-1">
-              "A place for everything, and everything in its place" - said no zawali user ever 😅
+              "A place for everything, and everything in its place" - said no
+              zawali user ever 😅
             </span>
           </p>
         </div>
@@ -49,28 +59,28 @@ const getTabConfig = (tabId: string) => {
   const configs = {
     categories: {
       icon: Tag,
-      emoji: '🏷️',
-      label: 'Categories',
-      description: 'Where money goes to get labeled'
+      emoji: "🏷️",
+      label: "Categories",
+      description: "Where money goes to get labeled",
     },
     trips: {
       icon: MapPin,
-      emoji: '✈️',
-      label: 'Trips',
-      description: 'Adventures that cost money'
+      emoji: "✈️",
+      label: "Trips",
+      description: "Adventures that cost money",
     },
     accounts: {
       icon: Building,
-      emoji: '🏦',
-      label: 'Accounts',
-      description: 'The containers of your wealth (or debt)'
+      emoji: "🏦",
+      label: "Accounts",
+      description: "The containers of your wealth (or debt)",
     },
     family: {
       icon: Users,
-      emoji: '👨‍👩‍👧‍👦',
-      label: 'Family',
-      description: 'The people who share your financial struggles'
-    }
+      emoji: "👨‍👩‍👧‍👦",
+      label: "Family",
+      description: "The people who share your financial struggles",
+    },
   };
   return configs[tabId as keyof typeof configs];
 };
@@ -87,7 +97,9 @@ const ManageDataPage: React.FC = () => {
         <div className="text-center">
           <div className="text-6xl mb-4 zawali-float">⚙️</div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your organizational tools...</p>
+          <p className="text-muted-foreground">
+            Loading your organizational tools...
+          </p>
         </div>
       </div>
     );
@@ -98,9 +110,9 @@ const ManageDataPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
             className="flex items-center gap-2 hover:bg-muted"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -118,14 +130,14 @@ const ManageDataPage: React.FC = () => {
       {/* Enhanced Tabs with personality */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4 bg-card h-auto">
-          {['categories', 'trips', 'accounts', 'family'].map((tabId) => {
+          {["categories", "trips", "accounts", "family"].map((tabId) => {
             const config = getTabConfig(tabId);
             const IconComponent = config.icon;
-            
+
             return (
-              <TabsTrigger 
+              <TabsTrigger
                 key={tabId}
-                value={tabId} 
+                value={tabId}
                 className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted transition-colors"
               >
                 <div className="flex items-center gap-2">
@@ -134,7 +146,9 @@ const ManageDataPage: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <div className="font-medium text-sm">{config.label}</div>
-                  <div className="text-xs opacity-70 hidden sm:block">{config.description}</div>
+                  <div className="text-xs opacity-70 hidden sm:block">
+                    {config.description}
+                  </div>
                 </div>
               </TabsTrigger>
             );
@@ -151,7 +165,8 @@ const ManageDataPage: React.FC = () => {
                 <span>Transaction Categories</span>
               </h2>
               <p className="text-muted-foreground text-sm">
-                Organize your transactions by category. Because "miscellaneous" isn't a financial strategy.
+                Organize your transactions by category. Because "miscellaneous"
+                isn't a financial strategy.
               </p>
             </div>
             <CategoryManagement />
@@ -165,7 +180,8 @@ const ManageDataPage: React.FC = () => {
                 <span>Trip Management</span>
               </h2>
               <p className="text-muted-foreground text-sm">
-                Track expenses by trip. Perfect for seeing exactly how much that "quick weekend getaway" actually cost.
+                Track expenses by trip. Perfect for seeing exactly how much that
+                "quick weekend getaway" actually cost.
               </p>
             </div>
             <TripManagement />
@@ -179,7 +195,8 @@ const ManageDataPage: React.FC = () => {
                 <span>Account Management</span>
               </h2>
               <p className="text-muted-foreground text-sm">
-                Manage your financial accounts. From checking to savings to "that credit card I forgot about."
+                Manage your financial accounts. From checking to savings to
+                "that credit card I forgot about."
               </p>
             </div>
             <AccountManagement />
@@ -193,7 +210,8 @@ const ManageDataPage: React.FC = () => {
                 <span>Family Member Management</span>
               </h2>
               <p className="text-muted-foreground text-sm">
-                Track family member transactions. Because sharing financial responsibility is what family is all about.
+                Track family member transactions. Because sharing financial
+                responsibility is what family is all about.
               </p>
             </div>
             <FamilyMemberManagement />
@@ -213,10 +231,13 @@ const ManageDataPage: React.FC = () => {
               <div className="flex items-start gap-3">
                 <span className="text-lg">🏷️</span>
                 <div>
-                  <h4 className="font-medium text-foreground">Category Colors</h4>
+                  <h4 className="font-medium text-foreground">
+                    Category Colors
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Use colors to make your charts more visually appealing. Because if you're going to be broke, 
-                    at least make it look pretty.
+                    Use colors to make your charts more visually appealing.
+                    Because if you're going to be broke, at least make it look
+                    pretty.
                   </p>
                 </div>
               </div>
@@ -225,7 +246,8 @@ const ManageDataPage: React.FC = () => {
                 <div>
                   <h4 className="font-medium text-foreground">Trip Tracking</h4>
                   <p className="text-sm text-muted-foreground">
-                    Create trips to track vacation expenses. Great for realizing you spent more on coffee than accommodation.
+                    Create trips to track vacation expenses. Great for realizing
+                    you spent more on coffee than accommodation.
                   </p>
                 </div>
               </div>
@@ -236,8 +258,8 @@ const ManageDataPage: React.FC = () => {
                 <div>
                   <h4 className="font-medium text-foreground">Account Types</h4>
                   <p className="text-sm text-muted-foreground">
-                    Organize by account type: checking, savings, credit, investment. 
-                    Yes, that empty savings account counts.
+                    Organize by account type: checking, savings, credit,
+                    investment. Yes, that empty savings account counts.
                   </p>
                 </div>
               </div>
@@ -246,7 +268,7 @@ const ManageDataPage: React.FC = () => {
                 <div>
                   <h4 className="font-medium text-foreground">Family Colors</h4>
                   <p className="text-sm text-muted-foreground">
-                    Assign colors to family members for easy identification. 
+                    Assign colors to family members for easy identification.
                     Perfect for tracking who spent what on "essential" items.
                   </p>
                 </div>
@@ -260,7 +282,8 @@ const ManageDataPage: React.FC = () => {
       <div className="text-center py-6 mt-6">
         <div className="text-3xl mb-2 zawali-float">📊</div>
         <p className="text-muted-foreground italic text-sm">
-          "Organization is the key to financial success... or at least to understanding your financial failures." 💭
+          "Organization is the key to financial success... or at least to
+          understanding your financial failures." 💭
         </p>
       </div>
     </div>

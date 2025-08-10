@@ -2,9 +2,28 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Edit, Trash2, MapPin } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +50,7 @@ interface TripFormData {
 const TripManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   // Trip state
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,19 +63,19 @@ const TripManagement: React.FC = () => {
 
   // Forms
   const addForm = useForm<TripFormData>({
-    defaultValues: { 
-      name: '', 
-      start_date: '', 
-      end_date: '' 
-    }
+    defaultValues: {
+      name: "",
+      start_date: "",
+      end_date: "",
+    },
   });
-  
+
   const editForm = useForm<TripFormData>({
-    defaultValues: { 
-      name: '', 
-      start_date: '', 
-      end_date: '' 
-    }
+    defaultValues: {
+      name: "",
+      start_date: "",
+      end_date: "",
+    },
   });
 
   // Custom validation for date range
@@ -68,15 +87,15 @@ const TripManagement: React.FC = () => {
   // Fetch trips with transaction counts
   const fetchTrips = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Get trips
       const { data: tripsData, error: tripsError } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .from("trips")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name");
 
       if (tripsError) throw tripsError;
 
@@ -84,22 +103,22 @@ const TripManagement: React.FC = () => {
       const tripsWithCounts = await Promise.all(
         (tripsData || []).map(async (trip) => {
           const { count, error: countError } = await supabase
-            .from('transactions')
-            .select('id', { count: 'exact' })
-            .eq('trip_id', trip.id);
+            .from("transactions")
+            .select("id", { count: "exact" })
+            .eq("trip_id", trip.id);
 
           if (countError) {
-            console.error('Error counting transactions:', countError);
+            console.error("Error counting transactions:", countError);
             return { ...trip, transaction_count: 0 };
           }
 
           return { ...trip, transaction_count: count || 0 };
-        })
+        }),
       );
 
       setTrips(tripsWithCounts);
     } catch (error) {
-      console.error('Error fetching trips:', error);
+      console.error("Error fetching trips:", error);
       toast({
         title: "Error",
         description: "Failed to load trips",
@@ -120,26 +139,32 @@ const TripManagement: React.FC = () => {
 
     try {
       // Check for duplicate names
-      const existing = trips.find(t => t.name.toLowerCase() === data.name.toLowerCase());
+      const existing = trips.find(
+        (t) => t.name.toLowerCase() === data.name.toLowerCase(),
+      );
       if (existing) {
-        addForm.setError('name', { message: 'A trip with this name already exists' });
+        addForm.setError("name", {
+          message: "A trip with this name already exists",
+        });
         return;
       }
 
       // Validate date range
       if (!validateDateRange(data.start_date, data.end_date)) {
-        addForm.setError('end_date', { message: 'End date must be after or equal to start date' });
+        addForm.setError("end_date", {
+          message: "End date must be after or equal to start date",
+        });
         return;
       }
 
-      const { error } = await supabase
-        .from('trips')
-        .insert([{
+      const { error } = await supabase.from("trips").insert([
+        {
           user_id: user.id,
           name: data.name,
           start_date: data.start_date || null,
           end_date: data.end_date || null,
-        }]);
+        },
+      ]);
 
       if (error) throw error;
 
@@ -152,7 +177,7 @@ const TripManagement: React.FC = () => {
       addForm.reset();
       fetchTrips();
     } catch (error) {
-      console.error('Error adding trip:', error);
+      console.error("Error adding trip:", error);
       toast({
         title: "Error",
         description: "Failed to create trip",
@@ -167,28 +192,34 @@ const TripManagement: React.FC = () => {
 
     try {
       // Check for duplicate names (excluding current trip)
-      const existing = trips.find(t => 
-        t.name.toLowerCase() === data.name.toLowerCase() && t.id !== editingTrip.id
+      const existing = trips.find(
+        (t) =>
+          t.name.toLowerCase() === data.name.toLowerCase() &&
+          t.id !== editingTrip.id,
       );
       if (existing) {
-        editForm.setError('name', { message: 'A trip with this name already exists' });
+        editForm.setError("name", {
+          message: "A trip with this name already exists",
+        });
         return;
       }
 
       // Validate date range
       if (!validateDateRange(data.start_date, data.end_date)) {
-        editForm.setError('end_date', { message: 'End date must be after or equal to start date' });
+        editForm.setError("end_date", {
+          message: "End date must be after or equal to start date",
+        });
         return;
       }
 
       const { error } = await supabase
-        .from('trips')
+        .from("trips")
         .update({
           name: data.name,
           start_date: data.start_date || null,
           end_date: data.end_date || null,
         })
-        .eq('id', editingTrip.id);
+        .eq("id", editingTrip.id);
 
       if (error) throw error;
 
@@ -202,7 +233,7 @@ const TripManagement: React.FC = () => {
       editForm.reset();
       fetchTrips();
     } catch (error) {
-      console.error('Error editing trip:', error);
+      console.error("Error editing trip:", error);
       toast({
         title: "Error",
         description: "Failed to update trip",
@@ -217,28 +248,28 @@ const TripManagement: React.FC = () => {
 
     try {
       // If reassigning, update all transactions first
-      if (reassignToTripId && reassignToTripId !== 'null') {
+      if (reassignToTripId && reassignToTripId !== "null") {
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ trip_id: reassignToTripId })
-          .eq('trip_id', deletingTrip.id);
+          .eq("trip_id", deletingTrip.id);
 
         if (updateError) throw updateError;
       } else {
         // Set transactions to null (no trip)
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ trip_id: null })
-          .eq('trip_id', deletingTrip.id);
+          .eq("trip_id", deletingTrip.id);
 
         if (updateError) throw updateError;
       }
 
       // Now delete the trip
       const { error } = await supabase
-        .from('trips')
+        .from("trips")
         .delete()
-        .eq('id', deletingTrip.id);
+        .eq("id", deletingTrip.id);
 
       if (error) throw error;
 
@@ -252,7 +283,7 @@ const TripManagement: React.FC = () => {
       setReassignToTripId(null);
       fetchTrips();
     } catch (error) {
-      console.error('Error deleting trip:', error);
+      console.error("Error deleting trip:", error);
       toast({
         title: "Error",
         description: "Failed to delete trip",
@@ -266,8 +297,8 @@ const TripManagement: React.FC = () => {
     setEditingTrip(trip);
     editForm.reset({
       name: trip.name,
-      start_date: trip.start_date || '',
-      end_date: trip.end_date || ''
+      start_date: trip.start_date || "",
+      end_date: trip.end_date || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -281,17 +312,20 @@ const TripManagement: React.FC = () => {
 
   // Format date for display
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+    if (!dateString) return "Not set";
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
   };
 
   // Format date range for display
-  const formatDateRange = (startDate: string | null, endDate: string | null) => {
-    if (!startDate && !endDate) return 'No dates set';
+  const formatDateRange = (
+    startDate: string | null,
+    endDate: string | null,
+  ) => {
+    if (!startDate && !endDate) return "No dates set";
     if (!startDate) return `Until ${formatDate(endDate)}`;
     if (!endDate) return `From ${formatDate(startDate)}`;
     if (startDate === endDate) return formatDate(startDate);
@@ -323,19 +357,30 @@ const TripManagement: React.FC = () => {
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="text-foreground">Add New Trip</DialogTitle>
+              <DialogTitle className="text-foreground">
+                Add New Trip
+              </DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(onAddTrip)} className="space-y-4">
+              <form
+                onSubmit={addForm.handleSubmit(onAddTrip)}
+                className="space-y-4"
+              >
                 <FormField
                   control={addForm.control}
                   name="name"
                   rules={{ required: "Trip name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground">Trip Name</FormLabel>
+                      <FormLabel className="text-foreground">
+                        Trip Name
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Summer Vacation, Business Trip" {...field} className="bg-input border-border" />
+                        <Input
+                          placeholder="e.g., Summer Vacation, Business Trip"
+                          {...field}
+                          className="bg-input border-border"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -347,9 +392,15 @@ const TripManagement: React.FC = () => {
                     name="start_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-foreground">Start Date</FormLabel>
+                        <FormLabel className="text-foreground">
+                          Start Date
+                        </FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="bg-input border-border" />
+                          <Input
+                            type="date"
+                            {...field}
+                            className="bg-input border-border"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -360,9 +411,15 @@ const TripManagement: React.FC = () => {
                     name="end_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-foreground">End Date</FormLabel>
+                        <FormLabel className="text-foreground">
+                          End Date
+                        </FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="bg-input border-border" />
+                          <Input
+                            type="date"
+                            {...field}
+                            className="bg-input border-border"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -370,8 +427,18 @@ const TripManagement: React.FC = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Add Trip</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="border-border hover:bg-muted">
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                  >
+                    Add Trip
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                    className="border-border hover:bg-muted"
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -389,18 +456,27 @@ const TripManagement: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {trips.map((trip) => (
-              <div key={trip.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors">
+              <div
+                key={trip.id}
+                className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center">
                     <MapPin className="w-3 h-3 text-accent" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{trip.name}</span>
+                      <span className="font-medium text-foreground">
+                        {trip.name}
+                      </span>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <div>{formatDateRange(trip.start_date, trip.end_date)}</div>
-                      <div>Used in {trip.transaction_count || 0} transactions</div>
+                      <div>
+                        {formatDateRange(trip.start_date, trip.end_date)}
+                      </div>
+                      <div>
+                        Used in {trip.transaction_count || 0} transactions
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -435,7 +511,10 @@ const TripManagement: React.FC = () => {
             <DialogTitle className="text-foreground">Edit Trip</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditTrip)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(onEditTrip)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
@@ -456,9 +535,15 @@ const TripManagement: React.FC = () => {
                   name="start_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground">Start Date</FormLabel>
+                      <FormLabel className="text-foreground">
+                        Start Date
+                      </FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} className="bg-input border-border" />
+                        <Input
+                          type="date"
+                          {...field}
+                          className="bg-input border-border"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -469,9 +554,15 @@ const TripManagement: React.FC = () => {
                   name="end_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground">End Date</FormLabel>
+                      <FormLabel className="text-foreground">
+                        End Date
+                      </FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} className="bg-input border-border" />
+                        <Input
+                          type="date"
+                          {...field}
+                          className="bg-input border-border"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -479,8 +570,18 @@ const TripManagement: React.FC = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Update Trip</Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-border hover:bg-muted">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                >
+                  Update Trip
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                  className="border-border hover:bg-muted"
+                >
                   Cancel
                 </Button>
               </div>
@@ -497,45 +598,54 @@ const TripManagement: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-foreground">
-              Are you sure you want to delete the trip <strong>"{deletingTrip?.name}"</strong>?
+              Are you sure you want to delete the trip{" "}
+              <strong>"{deletingTrip?.name}"</strong>?
             </p>
             {deletingTrip && deletingTrip.transaction_count > 0 && (
               <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <p className="text-sm text-warning">
-                  <strong>Warning:</strong> This trip is used by {deletingTrip.transaction_count} transactions.
+                  <strong>Warning:</strong> This trip is used by{" "}
+                  {deletingTrip.transaction_count} transactions.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  You can either reassign these transactions to another trip or leave them without a trip.
+                  You can either reassign these transactions to another trip or
+                  leave them without a trip.
                 </p>
                 <div className="mt-3">
-                  <Select value={reassignToTripId || 'null'} onValueChange={setReassignToTripId}>
+                  <Select
+                    value={reassignToTripId || "null"}
+                    onValueChange={setReassignToTripId}
+                  >
                     <SelectTrigger className="bg-input border-border">
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="null">Leave without trip</SelectItem>
                       {trips
-                        .filter(t => t.id !== deletingTrip.id)
-                        .map(trip => (
+                        .filter((t) => t.id !== deletingTrip.id)
+                        .map((trip) => (
                           <SelectItem key={trip.id} value={trip.id}>
                             {trip.name}
                           </SelectItem>
-                        ))
-                      }
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             )}
             <div className="flex gap-2">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={onDeleteTrip}
                 className="flex-1 bg-destructive hover:bg-destructive/90"
               >
                 Delete Trip
               </Button>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-border hover:bg-muted">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="border-border hover:bg-muted"
+              >
                 Cancel
               </Button>
             </div>

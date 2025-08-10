@@ -2,9 +2,28 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Edit, Trash2, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -31,23 +50,23 @@ interface AccountFormData {
 
 // Account type mapping
 const ACCOUNT_TYPES = [
-  { value: 'checking', label: 'Checking' },
-  { value: 'savings', label: 'Savings' },
-  { value: 'credit', label: 'Credit Card' },
-  { value: 'investment', label: 'Investment' },
-  { value: 'other', label: 'Other' }
+  { value: "checking", label: "Checking" },
+  { value: "savings", label: "Savings" },
+  { value: "credit", label: "Credit Card" },
+  { value: "investment", label: "Investment" },
+  { value: "other", label: "Other" },
 ];
 
 // Currency options
 const CURRENCIES = [
-  { value: 'USD', label: 'USD' },
-  { value: 'GBP', label: 'GBP' }
+  { value: "USD", label: "USD" },
+  { value: "GBP", label: "GBP" },
 ];
 
 const AccountManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   // Account state
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,43 +75,45 @@ const AccountManagement: React.FC = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [reassignToAccountId, setReassignToAccountId] = useState<string | null>(null);
+  const [reassignToAccountId, setReassignToAccountId] = useState<string | null>(
+    null,
+  );
 
   // Forms
   const addForm = useForm<AccountFormData>({
-    defaultValues: { 
-      name: '', 
-      account_type: '', 
-      currency: '' 
-    }
+    defaultValues: {
+      name: "",
+      account_type: "",
+      currency: "",
+    },
   });
-  
+
   const editForm = useForm<AccountFormData>({
-    defaultValues: { 
-      name: '', 
-      account_type: '', 
-      currency: '' 
-    }
+    defaultValues: {
+      name: "",
+      account_type: "",
+      currency: "",
+    },
   });
 
   // Helper function to get account type label
   const getAccountTypeLabel = (value: string) => {
-    const type = ACCOUNT_TYPES.find(t => t.value === value);
+    const type = ACCOUNT_TYPES.find((t) => t.value === value);
     return type ? type.label : value;
   };
 
   // Fetch accounts with transaction counts
   const fetchAccounts = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Get accounts
       const { data: accountsData, error: accountsError } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .from("accounts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name");
 
       if (accountsError) throw accountsError;
 
@@ -100,22 +121,22 @@ const AccountManagement: React.FC = () => {
       const accountsWithCounts = await Promise.all(
         (accountsData || []).map(async (account) => {
           const { count, error: countError } = await supabase
-            .from('transactions')
-            .select('id', { count: 'exact' })
-            .eq('account_id', account.id);
+            .from("transactions")
+            .select("id", { count: "exact" })
+            .eq("account_id", account.id);
 
           if (countError) {
-            console.error('Error counting transactions:', countError);
+            console.error("Error counting transactions:", countError);
             return { ...account, transaction_count: 0 };
           }
 
           return { ...account, transaction_count: count || 0 };
-        })
+        }),
       );
 
       setAccounts(accountsWithCounts);
     } catch (error) {
-      console.error('Error fetching accounts:', error);
+      console.error("Error fetching accounts:", error);
       toast({
         title: "Error",
         description: "Failed to load accounts",
@@ -136,20 +157,24 @@ const AccountManagement: React.FC = () => {
 
     try {
       // Check for duplicate names
-      const existing = accounts.find(a => a.name.toLowerCase() === data.name.toLowerCase());
+      const existing = accounts.find(
+        (a) => a.name.toLowerCase() === data.name.toLowerCase(),
+      );
       if (existing) {
-        addForm.setError('name', { message: 'An account with this name already exists' });
+        addForm.setError("name", {
+          message: "An account with this name already exists",
+        });
         return;
       }
 
-      const { error } = await supabase
-        .from('accounts')
-        .insert([{
+      const { error } = await supabase.from("accounts").insert([
+        {
           user_id: user.id,
           name: data.name,
           account_type: data.account_type,
           currency: data.currency,
-        }]);
+        },
+      ]);
 
       if (error) throw error;
 
@@ -162,7 +187,7 @@ const AccountManagement: React.FC = () => {
       addForm.reset();
       fetchAccounts();
     } catch (error) {
-      console.error('Error adding account:', error);
+      console.error("Error adding account:", error);
       toast({
         title: "Error",
         description: "Failed to create account",
@@ -177,22 +202,26 @@ const AccountManagement: React.FC = () => {
 
     try {
       // Check for duplicate names (excluding current account)
-      const existing = accounts.find(a => 
-        a.name.toLowerCase() === data.name.toLowerCase() && a.id !== editingAccount.id
+      const existing = accounts.find(
+        (a) =>
+          a.name.toLowerCase() === data.name.toLowerCase() &&
+          a.id !== editingAccount.id,
       );
       if (existing) {
-        editForm.setError('name', { message: 'An account with this name already exists' });
+        editForm.setError("name", {
+          message: "An account with this name already exists",
+        });
         return;
       }
 
       const { error } = await supabase
-        .from('accounts')
+        .from("accounts")
         .update({
           name: data.name,
           account_type: data.account_type,
           currency: data.currency,
         })
-        .eq('id', editingAccount.id);
+        .eq("id", editingAccount.id);
 
       if (error) throw error;
 
@@ -206,7 +235,7 @@ const AccountManagement: React.FC = () => {
       editForm.reset();
       fetchAccounts();
     } catch (error) {
-      console.error('Error editing account:', error);
+      console.error("Error editing account:", error);
       toast({
         title: "Error",
         description: "Failed to update account",
@@ -221,28 +250,28 @@ const AccountManagement: React.FC = () => {
 
     try {
       // If reassigning, update all transactions first
-      if (reassignToAccountId && reassignToAccountId !== 'null') {
+      if (reassignToAccountId && reassignToAccountId !== "null") {
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ account_id: reassignToAccountId })
-          .eq('account_id', deletingAccount.id);
+          .eq("account_id", deletingAccount.id);
 
         if (updateError) throw updateError;
       } else {
         // Set transactions to null (no account)
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ account_id: null })
-          .eq('account_id', deletingAccount.id);
+          .eq("account_id", deletingAccount.id);
 
         if (updateError) throw updateError;
       }
 
       // Now delete the account
       const { error } = await supabase
-        .from('accounts')
+        .from("accounts")
         .delete()
-        .eq('id', deletingAccount.id);
+        .eq("id", deletingAccount.id);
 
       if (error) throw error;
 
@@ -256,7 +285,7 @@ const AccountManagement: React.FC = () => {
       setReassignToAccountId(null);
       fetchAccounts();
     } catch (error) {
-      console.error('Error deleting account:', error);
+      console.error("Error deleting account:", error);
       toast({
         title: "Error",
         description: "Failed to delete account",
@@ -271,7 +300,7 @@ const AccountManagement: React.FC = () => {
     editForm.reset({
       name: account.name,
       account_type: account.account_type,
-      currency: account.currency
+      currency: account.currency,
     });
     setIsEditDialogOpen(true);
   };
@@ -311,7 +340,10 @@ const AccountManagement: React.FC = () => {
               <DialogTitle>Add New Account</DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(onAddAccount)} className="space-y-4">
+              <form
+                onSubmit={addForm.handleSubmit(onAddAccount)}
+                className="space-y-4"
+              >
                 <FormField
                   control={addForm.control}
                   name="name"
@@ -320,7 +352,10 @@ const AccountManagement: React.FC = () => {
                     <FormItem>
                       <FormLabel>Account Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., HSBC Checking, Savings Account" {...field} />
+                        <Input
+                          placeholder="e.g., HSBC Checking, Savings Account"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -333,7 +368,10 @@ const AccountManagement: React.FC = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Account Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select account type" />
@@ -358,7 +396,10 @@ const AccountManagement: React.FC = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select currency" />
@@ -366,7 +407,10 @@ const AccountManagement: React.FC = () => {
                         </FormControl>
                         <SelectContent>
                           {CURRENCIES.map((currency) => (
-                            <SelectItem key={currency.value} value={currency.value}>
+                            <SelectItem
+                              key={currency.value}
+                              value={currency.value}
+                            >
                               {currency.label}
                             </SelectItem>
                           ))}
@@ -377,8 +421,14 @@ const AccountManagement: React.FC = () => {
                   )}
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">Add Account</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="submit" className="flex-1">
+                    Add Account
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -396,7 +446,10 @@ const AccountManagement: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {accounts.map((account) => (
-              <div key={account.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50">
+              <div
+                key={account.id}
+                className="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
                     <Building className="w-3 h-3 text-green-600" />
@@ -406,8 +459,13 @@ const AccountManagement: React.FC = () => {
                       <span className="font-medium">{account.name}</span>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <div>{getAccountTypeLabel(account.account_type)} • {account.currency}</div>
-                      <div>Used in {account.transaction_count || 0} transactions</div>
+                      <div>
+                        {getAccountTypeLabel(account.account_type)} •{" "}
+                        {account.currency}
+                      </div>
+                      <div>
+                        Used in {account.transaction_count || 0} transactions
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -441,7 +499,10 @@ const AccountManagement: React.FC = () => {
             <DialogTitle>Edit Account</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditAccount)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(onEditAccount)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
@@ -496,7 +557,10 @@ const AccountManagement: React.FC = () => {
                       </FormControl>
                       <SelectContent>
                         {CURRENCIES.map((currency) => (
-                          <SelectItem key={currency.value} value={currency.value}>
+                          <SelectItem
+                            key={currency.value}
+                            value={currency.value}
+                          >
                             {currency.label}
                           </SelectItem>
                         ))}
@@ -507,8 +571,14 @@ const AccountManagement: React.FC = () => {
                 )}
               />
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">Update Account</Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                <Button type="submit" className="flex-1">
+                  Update Account
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
                   Cancel
                 </Button>
               </div>
@@ -525,45 +595,55 @@ const AccountManagement: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              Are you sure you want to delete the account <strong>"{deletingAccount?.name}"</strong>?
+              Are you sure you want to delete the account{" "}
+              <strong>"{deletingAccount?.name}"</strong>?
             </p>
             {deletingAccount && deletingAccount.transaction_count > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800">
-                  <strong>Warning:</strong> This account is used by {deletingAccount.transaction_count} transactions.
+                  <strong>Warning:</strong> This account is used by{" "}
+                  {deletingAccount.transaction_count} transactions.
                 </p>
                 <p className="text-sm text-yellow-700 mt-2">
-                  You can either reassign these transactions to another account or leave them without an account.
+                  You can either reassign these transactions to another account
+                  or leave them without an account.
                 </p>
                 <div className="mt-3">
-                  <Select value={reassignToAccountId || 'null'} onValueChange={setReassignToAccountId}>
+                  <Select
+                    value={reassignToAccountId || "null"}
+                    onValueChange={setReassignToAccountId}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="null">Leave without account</SelectItem>
+                      <SelectItem value="null">
+                        Leave without account
+                      </SelectItem>
                       {accounts
-                        .filter(a => a.id !== deletingAccount.id)
-                        .map(account => (
+                        .filter((a) => a.id !== deletingAccount.id)
+                        .map((account) => (
                           <SelectItem key={account.id} value={account.id}>
                             {account.name}
                           </SelectItem>
-                        ))
-                      }
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             )}
             <div className="flex gap-2">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={onDeleteAccount}
                 className="flex-1"
               >
                 Delete Account
               </Button>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
                 Cancel
               </Button>
             </div>

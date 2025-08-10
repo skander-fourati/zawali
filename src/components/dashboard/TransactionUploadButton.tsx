@@ -8,7 +8,10 @@ interface TransactionUploadButtonProps {
   className?: string;
 }
 
-export function TransactionUploadButton({ onTransactionsUploaded, className }: TransactionUploadButtonProps) {
+export function TransactionUploadButton({
+  onTransactionsUploaded,
+  className,
+}: TransactionUploadButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleTransactionsUploaded = () => {
@@ -18,7 +21,7 @@ export function TransactionUploadButton({ onTransactionsUploaded, className }: T
 
   return (
     <>
-      <Button 
+      <Button
         onClick={() => setIsModalOpen(true)}
         className={className}
         size="sm"
@@ -26,7 +29,7 @@ export function TransactionUploadButton({ onTransactionsUploaded, className }: T
         <Upload className="h-4 w-4 mr-2" />
         Upload Transactions
       </Button>
-      
+
       <TransactionUploadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

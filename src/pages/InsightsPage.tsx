@@ -2,7 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ExpensesByCategory } from "@/components/charts/ExpensesByCategory";
 import { ExpensesOverTime } from "@/components/charts/ExpensesOverTime";
 import { ExpensesByTrip } from "@/components/charts/ExpensesByTrip";
@@ -21,9 +27,12 @@ const ZawaliInsightsHeader = () => (
   <div className="flex items-center gap-4 mb-8">
     <div className="text-4xl zawali-float">📊</div>
     <div>
-      <h1 className="text-3xl font-bold text-zawali-gradient">Financial Insights</h1>
+      <h1 className="text-3xl font-bold text-zawali-gradient">
+        Financial Insights
+      </h1>
       <p className="text-muted-foreground mt-1">
-        Discover where your money went to hide (spoiler: it's probably not coming back)
+        Discover where your money went to hide (spoiler: it's probably not
+        coming back)
       </p>
     </div>
   </div>
@@ -35,13 +44,19 @@ const ZawaliLoading = () => (
     <div className="text-center">
       <div className="text-6xl mb-4 zawali-float">💰</div>
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-      <p className="text-muted-foreground">Analyzing your financial adventures...</p>
+      <p className="text-muted-foreground">
+        Analyzing your financial adventures...
+      </p>
     </div>
   </div>
 );
 
 // Zawali Coming Soon Card with moved expense analysis
-const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] }) => (
+const ZawaliComingSoon = ({
+  expensesByCategory,
+}: {
+  expensesByCategory: any[];
+}) => (
   <div className="space-y-6">
     {/* Zawali Expense Analysis - Moved from Expenses tab */}
     <Card className="bg-card border-border">
@@ -56,21 +71,32 @@ const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] })
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-muted rounded-lg">
             <div className="text-2xl mb-2">😅</div>
-            <div className="text-sm text-muted-foreground">Most Frequent Category</div>
+            <div className="text-sm text-muted-foreground">
+              Most Frequent Category
+            </div>
             <div className="font-medium text-foreground">
-              {expensesByCategory.length > 0 ? expensesByCategory[0].category : "No data"}
+              {expensesByCategory.length > 0
+                ? expensesByCategory[0].category
+                : "No data"}
             </div>
           </div>
           <div className="text-center p-4 bg-muted rounded-lg">
             <div className="text-2xl mb-2">💸</div>
-            <div className="text-sm text-muted-foreground">Biggest Money Drain</div>
+            <div className="text-sm text-muted-foreground">
+              Biggest Money Drain
+            </div>
             <div className="font-medium text-foreground">
-              £{expensesByCategory.length > 0 ? Math.abs(expensesByCategory[0].amount).toFixed(2) : "0.00"}
+              £
+              {expensesByCategory.length > 0
+                ? Math.abs(expensesByCategory[0].amount).toFixed(2)
+                : "0.00"}
             </div>
           </div>
           <div className="text-center p-4 bg-muted rounded-lg">
             <div className="text-2xl mb-2">📊</div>
-            <div className="text-sm text-muted-foreground">Total Categories</div>
+            <div className="text-sm text-muted-foreground">
+              Total Categories
+            </div>
             <div className="font-medium text-foreground">
               {expensesByCategory.length}
             </div>
@@ -90,8 +116,9 @@ const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] })
           AI-Powered Insights Coming Soon
         </CardTitle>
         <CardDescription className="text-base max-w-md mx-auto mt-2">
-          Get personalized financial insights, spending recommendations, and maybe even some life advice 
-          (because your finances need all the help they can get).
+          Get personalized financial insights, spending recommendations, and
+          maybe even some life advice (because your finances need all the help
+          they can get).
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center pb-12">
@@ -102,7 +129,8 @@ const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] })
           </div>
           <div className="flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-success rounded-full"></div>
-            Personalized saving recommendations (assuming there's anything left to save)
+            Personalized saving recommendations (assuming there's anything left
+            to save)
           </div>
           <div className="flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-accent rounded-full"></div>
@@ -114,7 +142,8 @@ const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] })
           </div>
         </div>
         <div className="mt-6 text-xs text-muted-foreground italic">
-          "Coming soon" in zawali time means "eventually, maybe, if we figure out how money works" 💭
+          "Coming soon" in zawali time means "eventually, maybe, if we figure
+          out how money works" 💭
         </div>
       </CardContent>
     </Card>
@@ -124,17 +153,14 @@ const ZawaliComingSoon = ({ expensesByCategory }: { expensesByCategory: any[] })
 const InsightsPage = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const {
-    transactions,
-    loading: transactionsLoading,
-  } = useTransactions();
+  const { transactions, loading: transactionsLoading } = useTransactions();
 
   const [categoryColors, setCategoryColors] = useState({});
   const [activeTab, setActiveTab] = useState("expenses");
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      navigate("/auth");
     }
   }, [user, loading, navigate]);
 
@@ -146,28 +172,29 @@ const InsightsPage = () => {
 
   const fetchCategoryColors = async () => {
     if (!user) return;
-    
+
     try {
       const { data: categories, error } = await supabase
-        .from('categories')
-        .select('name, color')
-        .eq('user_id', user.id);
+        .from("categories")
+        .select("name, color")
+        .eq("user_id", user.id);
 
       if (error) {
-        console.error('Error fetching category colors:', error);
+        console.error("Error fetching category colors:", error);
         return;
       }
 
-      const colorMap = categories?.reduce((acc, category) => {
-        if (category.color) {
-          acc[category.name] = category.color;
-        }
-        return acc;
-      }, {}) || {};
+      const colorMap =
+        categories?.reduce((acc, category) => {
+          if (category.color) {
+            acc[category.name] = category.color;
+          }
+          return acc;
+        }, {}) || {};
 
       setCategoryColors(colorMap);
     } catch (error) {
-      console.error('Error fetching category colors:', error);
+      console.error("Error fetching category colors:", error);
     }
   };
 
@@ -180,22 +207,29 @@ const InsightsPage = () => {
   }
 
   // Calculate chart data
-  console.log('=== DEBUGGING INSIGHTS PAGE ===');
-  console.log('Transactions count:', transactions.length);
-  console.log('Sample transaction:', transactions[0]);
-  
+  console.log("=== DEBUGGING INSIGHTS PAGE ===");
+  console.log("Transactions count:", transactions.length);
+  console.log("Sample transaction:", transactions[0]);
+
   let expensesByCategory = [];
   try {
-    expensesByCategory = chartCalculations.getLastMonthExpensesByCategory(transactions, categoryColors);
-    console.log('expensesByCategory result:', expensesByCategory);
+    expensesByCategory = chartCalculations.getLastMonthExpensesByCategory(
+      transactions,
+      categoryColors,
+    );
+    console.log("expensesByCategory result:", expensesByCategory);
   } catch (error) {
-    console.error('Error in getLastMonthExpensesByCategory:', error);
+    console.error("Error in getLastMonthExpensesByCategory:", error);
   }
-  const expensesOverTime = chartCalculations.getExpensesOverTime(transactions, categoryColors);
+  const expensesOverTime = chartCalculations.getExpensesOverTime(
+    transactions,
+    categoryColors,
+  );
   const expensesByTrip = chartCalculations.getExpensesByTrip(transactions);
   const incomeOverTime = chartCalculations.getIncomeOverTime(transactions);
   const savingsOverTime = chartCalculations.getSavingsOverTime(transactions);
-  const investmentsOverTime = chartCalculations.getInvestmentsOverTime(transactions);
+  const investmentsOverTime =
+    chartCalculations.getInvestmentsOverTime(transactions);
 
   return (
     <ProtectedRoute>
@@ -206,7 +240,7 @@ const InsightsPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="flex items-center gap-2 hover:bg-muted"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -218,19 +252,32 @@ const InsightsPage = () => {
           <ZawaliInsightsHeader />
 
           {/* Tabs with enhanced styling */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
             <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3 bg-card">
-              <TabsTrigger value="expenses" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted">
+              <TabsTrigger
+                value="expenses"
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted"
+              >
                 <BarChart3 className="h-4 w-4" />
                 <span>💸</span>
                 <span className="hidden sm:inline">Expenses</span>
               </TabsTrigger>
-              <TabsTrigger value="income-savings" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted">
+              <TabsTrigger
+                value="income-savings"
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted"
+              >
                 <TrendingUp className="h-4 w-4" />
                 <span>💰</span>
                 <span className="hidden sm:inline">Income & Savings</span>
               </TabsTrigger>
-              <TabsTrigger value="insights" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted">
+              <TabsTrigger
+                value="insights"
+                className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted"
+              >
                 <Lightbulb className="h-4 w-4" />
                 <span>🤖</span>
                 <span className="hidden sm:inline">AI Insights</span>
@@ -250,9 +297,9 @@ const InsightsPage = () => {
 
               {/* Full-width Expenses Over Time chart */}
               <div className="w-full">
-                <ExpensesOverTime 
+                <ExpensesOverTime
                   data={expensesOverTime}
-                  categoryColors={categoryColors} 
+                  categoryColors={categoryColors}
                 />
               </div>
 
@@ -275,20 +322,26 @@ const InsightsPage = () => {
                     <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <span className="text-xl">🇹🇳</span>
                       <div>
-                        <h4 className="font-medium text-foreground">The Tunisian Truth</h4>
+                        <h4 className="font-medium text-foreground">
+                          The Tunisian Truth
+                        </h4>
                         <p className="text-sm text-muted-foreground">
-                          Fun fact: "Zawali" means "brokie" in Tunisian. So basically, this whole app is just 
-                          embracing your financial destiny with Mediterranean flair.
+                          Fun fact: "Zawali" means "brokie" in Tunisian. So
+                          basically, this whole app is just embracing your
+                          financial destiny with Mediterranean flair.
                         </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <span className="text-xl">🤷</span>
                       <div>
-                        <h4 className="font-medium text-foreground">Zawali Life Philosophy</h4>
+                        <h4 className="font-medium text-foreground">
+                          Zawali Life Philosophy
+                        </h4>
                         <p className="text-sm text-muted-foreground">
-                          Why worry about being zawali when you can track it in style? At least now you have 
-                          beautiful charts to show exactly how broke you are.
+                          Why worry about being zawali when you can track it in
+                          style? At least now you have beautiful charts to show
+                          exactly how broke you are.
                         </p>
                       </div>
                     </div>
@@ -310,7 +363,7 @@ const InsightsPage = () => {
 
               {/* Full-width IncomeOverTime chart */}
               <div className="w-full">
-                <IncomeOverTime 
+                <IncomeOverTime
                   data={incomeOverTime}
                   categoryColors={categoryColors}
                 />
@@ -323,7 +376,7 @@ const InsightsPage = () => {
 
               {/* Full-width InvestmentsOverTime chart */}
               <div className="w-full">
-                <InvestmentsOverTime 
+                <InvestmentsOverTime
                   data={investmentsOverTime}
                   categoryColors={categoryColors}
                 />
@@ -342,19 +395,25 @@ const InsightsPage = () => {
                     <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <span className="text-xl">🐷</span>
                       <div>
-                        <h4 className="font-medium text-foreground">The Piggy Bank Principle</h4>
+                        <h4 className="font-medium text-foreground">
+                          The Piggy Bank Principle
+                        </h4>
                         <p className="text-sm text-muted-foreground">
-                          Every pound saved is a pound your future self won't have to worry about. 
-                          Unless you spend it on coffee tomorrow.
+                          Every pound saved is a pound your future self won't
+                          have to worry about. Unless you spend it on coffee
+                          tomorrow.
                         </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <span className="text-xl">📈</span>
                       <div>
-                        <h4 className="font-medium text-foreground">Investment Reality Check</h4>
+                        <h4 className="font-medium text-foreground">
+                          Investment Reality Check
+                        </h4>
                         <p className="text-sm text-muted-foreground">
-                          Compound interest is the eighth wonder of the world. Understanding it is the ninth.
+                          Compound interest is the eighth wonder of the world.
+                          Understanding it is the ninth.
                         </p>
                       </div>
                     </div>
@@ -370,7 +429,8 @@ const InsightsPage = () => {
                   AI-Powered Financial Wisdom 🤖
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                  Because sometimes you need a robot to tell you what you already know
+                  Because sometimes you need a robot to tell you what you
+                  already know
                 </p>
               </div>
 
@@ -382,7 +442,8 @@ const InsightsPage = () => {
           <div className="text-center py-8 mt-8 border-t border-border">
             <div className="text-4xl mb-4 zawali-float">💭</div>
             <p className="text-muted-foreground italic text-sm">
-              "The best financial advice is hindsight. The second best is zawali insights." 
+              "The best financial advice is hindsight. The second best is zawali
+              insights."
             </p>
           </div>
         </div>

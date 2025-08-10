@@ -3,9 +3,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Edit, Trash2, Tag, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,45 +48,49 @@ interface CategoryFormData {
 const CategoryManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   // Category state
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
+    null,
+  );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [reassignToCategoryId, setReassignToCategoryId] = useState<string | null>(null);
+  const [reassignToCategoryId, setReassignToCategoryId] = useState<
+    string | null
+  >(null);
 
   // Protected categories that cannot be edited or deleted
-  const protectedCategories = ['Income', 'Investment', 'Family Transfer'];
-  
+  const protectedCategories = ["Income", "Investment", "Family Transfer"];
+
   const isProtectedCategory = (categoryName: string) => {
     return protectedCategories.includes(categoryName);
   };
 
   // Forms
   const addForm = useForm<CategoryFormData>({
-    defaultValues: { name: '', color: '#3b82f6' }
+    defaultValues: { name: "", color: "#3b82f6" },
   });
-  
+
   const editForm = useForm<CategoryFormData>({
-    defaultValues: { name: '', color: '#3b82f6' }
+    defaultValues: { name: "", color: "#3b82f6" },
   });
 
   // Fetch categories with transaction counts
   const fetchCategories = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Get categories
       const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('name');
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name");
 
       if (categoriesError) throw categoriesError;
 
@@ -75,22 +98,22 @@ const CategoryManagement: React.FC = () => {
       const categoriesWithCounts = await Promise.all(
         (categoriesData || []).map(async (category) => {
           const { count, error: countError } = await supabase
-            .from('transactions')
-            .select('id', { count: 'exact' })
-            .eq('category_id', category.id);
+            .from("transactions")
+            .select("id", { count: "exact" })
+            .eq("category_id", category.id);
 
           if (countError) {
-            console.error('Error counting transactions:', countError);
+            console.error("Error counting transactions:", countError);
             return { ...category, transaction_count: 0 };
           }
 
           return { ...category, transaction_count: count || 0 };
-        })
+        }),
       );
 
       setCategories(categoriesWithCounts);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
       toast({
         title: "Error",
         description: "Failed to load categories",
@@ -111,20 +134,24 @@ const CategoryManagement: React.FC = () => {
 
     try {
       // Check for duplicate names
-      const existing = categories.find(c => c.name.toLowerCase() === data.name.toLowerCase());
+      const existing = categories.find(
+        (c) => c.name.toLowerCase() === data.name.toLowerCase(),
+      );
       if (existing) {
-        addForm.setError('name', { message: 'A category with this name already exists' });
+        addForm.setError("name", {
+          message: "A category with this name already exists",
+        });
         return;
       }
 
-      const { error } = await supabase
-        .from('categories')
-        .insert([{
+      const { error } = await supabase.from("categories").insert([
+        {
           user_id: user.id,
           name: data.name,
           color: data.color,
-          category_type: 'expense' // Default type, though we're not using this concept
-        }]);
+          category_type: "expense", // Default type, though we're not using this concept
+        },
+      ]);
 
       if (error) throw error;
 
@@ -137,7 +164,7 @@ const CategoryManagement: React.FC = () => {
       addForm.reset();
       fetchCategories();
     } catch (error) {
-      console.error('Error adding category:', error);
+      console.error("Error adding category:", error);
       toast({
         title: "Error",
         description: "Failed to create category",
@@ -152,21 +179,25 @@ const CategoryManagement: React.FC = () => {
 
     try {
       // Check for duplicate names (excluding current category)
-      const existing = categories.find(c => 
-        c.name.toLowerCase() === data.name.toLowerCase() && c.id !== editingCategory.id
+      const existing = categories.find(
+        (c) =>
+          c.name.toLowerCase() === data.name.toLowerCase() &&
+          c.id !== editingCategory.id,
       );
       if (existing) {
-        editForm.setError('name', { message: 'A category with this name already exists' });
+        editForm.setError("name", {
+          message: "A category with this name already exists",
+        });
         return;
       }
 
       const { error } = await supabase
-        .from('categories')
+        .from("categories")
         .update({
           name: data.name,
           color: data.color,
         })
-        .eq('id', editingCategory.id);
+        .eq("id", editingCategory.id);
 
       if (error) throw error;
 
@@ -180,7 +211,7 @@ const CategoryManagement: React.FC = () => {
       editForm.reset();
       fetchCategories();
     } catch (error) {
-      console.error('Error editing category:', error);
+      console.error("Error editing category:", error);
       toast({
         title: "Error",
         description: "Failed to update category",
@@ -195,28 +226,28 @@ const CategoryManagement: React.FC = () => {
 
     try {
       // If reassigning, update all transactions first
-      if (reassignToCategoryId && reassignToCategoryId !== 'null') {
+      if (reassignToCategoryId && reassignToCategoryId !== "null") {
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ category_id: reassignToCategoryId })
-          .eq('category_id', deletingCategory.id);
+          .eq("category_id", deletingCategory.id);
 
         if (updateError) throw updateError;
       } else {
         // Set transactions to null (uncategorized)
         const { error: updateError } = await supabase
-          .from('transactions')
+          .from("transactions")
           .update({ category_id: null })
-          .eq('category_id', deletingCategory.id);
+          .eq("category_id", deletingCategory.id);
 
         if (updateError) throw updateError;
       }
 
       // Now delete the category
       const { error } = await supabase
-        .from('categories')
+        .from("categories")
         .delete()
-        .eq('id', deletingCategory.id);
+        .eq("id", deletingCategory.id);
 
       if (error) throw error;
 
@@ -230,7 +261,7 @@ const CategoryManagement: React.FC = () => {
       setReassignToCategoryId(null);
       fetchCategories();
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error("Error deleting category:", error);
       toast({
         title: "Error",
         description: "Failed to delete category",
@@ -244,7 +275,7 @@ const CategoryManagement: React.FC = () => {
     setEditingCategory(category);
     editForm.reset({
       name: category.name,
-      color: category.color || '#3b82f6'
+      color: category.color || "#3b82f6",
     });
     setIsEditDialogOpen(true);
   };
@@ -281,19 +312,30 @@ const CategoryManagement: React.FC = () => {
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="text-foreground">Add New Category</DialogTitle>
+              <DialogTitle className="text-foreground">
+                Add New Category
+              </DialogTitle>
             </DialogHeader>
             <Form {...addForm}>
-              <form onSubmit={addForm.handleSubmit(onAddCategory)} className="space-y-4">
+              <form
+                onSubmit={addForm.handleSubmit(onAddCategory)}
+                className="space-y-4"
+              >
                 <FormField
                   control={addForm.control}
                   name="name"
                   rules={{ required: "Category name is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground">Category Name</FormLabel>
+                      <FormLabel className="text-foreground">
+                        Category Name
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Groceries, Entertainment" {...field} className="bg-input border-border" />
+                        <Input
+                          placeholder="e.g., Groceries, Entertainment"
+                          {...field}
+                          className="bg-input border-border"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -308,24 +350,32 @@ const CategoryManagement: React.FC = () => {
                       <FormControl>
                         <div className="space-y-3">
                           <div className="flex items-center gap-4">
-                            <Input 
-                              type="color" 
-                              {...field} 
-                              className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors" 
+                            <Input
+                              type="color"
+                              {...field}
+                              className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
                             />
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground">Click to choose a color</p>
-                              <p className="text-xs text-muted-foreground">Selected: {field.value}</p>
+                              <p className="text-sm font-medium text-foreground">
+                                Click to choose a color
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Selected: {field.value}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg">
-                            <div 
+                            <div
                               className="w-8 h-8 rounded-full border-2 border-background shadow-sm"
                               style={{ backgroundColor: field.value }}
                             />
                             <div>
-                              <p className="text-sm font-medium text-foreground">Preview</p>
-                              <p className="text-xs text-muted-foreground">How your category will appear</p>
+                              <p className="text-sm font-medium text-foreground">
+                                Preview
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                How your category will appear
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -335,8 +385,18 @@ const CategoryManagement: React.FC = () => {
                   )}
                 />
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Add Category</Button>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="border-border hover:bg-muted">
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-primary hover:bg-primary/90"
+                  >
+                    Add Category
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                    className="border-border hover:bg-muted"
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -354,17 +414,25 @@ const CategoryManagement: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors">
+              <div
+                key={category.id}
+                className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted transition-colors"
+              >
                 <div className="flex items-center gap-3">
-                  <div 
+                  <div
                     className="w-6 h-6 rounded-full border-2 border-border"
-                    style={{ backgroundColor: category.color || '#gray' }}
+                    style={{ backgroundColor: category.color || "#gray" }}
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{category.name}</span>
+                      <span className="font-medium text-foreground">
+                        {category.name}
+                      </span>
                       {isProtectedCategory(category.name) && (
-                        <Badge variant="secondary" className="text-xs bg-secondary/20 text-secondary">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-secondary/20 text-secondary"
+                        >
                           <Shield className="w-3 h-3 mr-1" />
                           Protected
                         </Badge>
@@ -408,14 +476,19 @@ const CategoryManagement: React.FC = () => {
             <DialogTitle className="text-foreground">Edit Category</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditCategory)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(onEditCategory)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="name"
                 rules={{ required: "Category name is required" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-foreground">Category Name</FormLabel>
+                    <FormLabel className="text-foreground">
+                      Category Name
+                    </FormLabel>
                     <FormControl>
                       <Input {...field} className="bg-input border-border" />
                     </FormControl>
@@ -432,24 +505,32 @@ const CategoryManagement: React.FC = () => {
                     <FormControl>
                       <div className="space-y-3">
                         <div className="flex items-center gap-4">
-                          <Input 
-                            type="color" 
-                            {...field} 
-                            className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors" 
+                          <Input
+                            type="color"
+                            {...field}
+                            className="w-20 h-12 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors"
                           />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">Click to choose a color</p>
-                            <p className="text-xs text-muted-foreground">Selected: {field.value}</p>
+                            <p className="text-sm font-medium text-foreground">
+                              Click to choose a color
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Selected: {field.value}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg">
-                          <div 
+                          <div
                             className="w-8 h-8 rounded-full border-2 border-background shadow-sm"
                             style={{ backgroundColor: field.value }}
                           />
                           <div>
-                            <p className="text-sm font-medium text-foreground">Preview</p>
-                            <p className="text-xs text-muted-foreground">How your category will appear</p>
+                            <p className="text-sm font-medium text-foreground">
+                              Preview
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              How your category will appear
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -459,8 +540,18 @@ const CategoryManagement: React.FC = () => {
                 )}
               />
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">Update Category</Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="border-border hover:bg-muted">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                >
+                  Update Category
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                  className="border-border hover:bg-muted"
+                >
                   Cancel
                 </Button>
               </div>
@@ -473,49 +564,60 @@ const CategoryManagement: React.FC = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Delete Category</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Delete Category
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-foreground">
-              Are you sure you want to delete the category <strong>"{deletingCategory?.name}"</strong>?
+              Are you sure you want to delete the category{" "}
+              <strong>"{deletingCategory?.name}"</strong>?
             </p>
             {deletingCategory && deletingCategory.transaction_count > 0 && (
               <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
                 <p className="text-sm text-warning">
-                  <strong>Warning:</strong> This category is used by {deletingCategory.transaction_count} transactions.
+                  <strong>Warning:</strong> This category is used by{" "}
+                  {deletingCategory.transaction_count} transactions.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  You can either reassign these transactions to another category or leave them uncategorized.
+                  You can either reassign these transactions to another category
+                  or leave them uncategorized.
                 </p>
                 <div className="mt-3">
-                  <Select value={reassignToCategoryId || 'null'} onValueChange={setReassignToCategoryId}>
+                  <Select
+                    value={reassignToCategoryId || "null"}
+                    onValueChange={setReassignToCategoryId}
+                  >
                     <SelectTrigger className="bg-input border-border">
                       <SelectValue placeholder="Reassign transactions to..." />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="null">Leave uncategorized</SelectItem>
                       {categories
-                        .filter(c => c.id !== deletingCategory.id)
-                        .map(category => (
+                        .filter((c) => c.id !== deletingCategory.id)
+                        .map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
-                        ))
-                      }
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             )}
             <div className="flex gap-2">
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={onDeleteCategory}
                 className="flex-1 bg-destructive hover:bg-destructive/90"
               >
                 Delete Category
               </Button>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-border hover:bg-muted">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                className="border-border hover:bg-muted"
+              >
                 Cancel
               </Button>
             </div>

@@ -24,7 +24,7 @@ export function BulkDeleteConfirmDialog({
   onClose,
   onConfirm,
   selectedTransactions,
-  loading = false
+  loading = false,
 }: BulkDeleteConfirmDialogProps) {
   // Show first 3 transaction descriptions as examples
   const sampleTransactions = selectedTransactions.slice(0, 3);
@@ -39,9 +39,9 @@ export function BulkDeleteConfirmDialog({
             <Badge variant="destructive">{selectedTransactions.length}</Badge>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete {selectedTransactions.length} selected transaction{selectedTransactions.length !== 1 ? 's' : ''}? 
+            Are you sure you want to delete {selectedTransactions.length}{" "}
+            selected transaction{selectedTransactions.length !== 1 ? "s" : ""}?
             This action cannot be undone.
-            
             {selectedTransactions.length > 0 && (
               <div className="mt-4 p-3 bg-gray-50 rounded-md">
                 <div className="text-sm font-medium text-gray-900 mb-2">
@@ -49,12 +49,15 @@ export function BulkDeleteConfirmDialog({
                 </div>
                 <div className="space-y-1">
                   {sampleTransactions.map((transaction, index) => (
-                    <div key={transaction.id} className="text-xs text-gray-600 flex items-center gap-2">
+                    <div
+                      key={transaction.id}
+                      className="text-xs text-gray-600 flex items-center gap-2"
+                    >
                       <span className="font-mono text-gray-400">
                         {new Date(transaction.date).toLocaleDateString()}
                       </span>
                       <span className="truncate max-w-48">
-                        {transaction.description || 'No description'}
+                        {transaction.description || "No description"}
                       </span>
                       <span className="font-mono text-red-600">
                         £{Math.abs(transaction.amount_gbp || 0).toFixed(2)}
@@ -63,7 +66,8 @@ export function BulkDeleteConfirmDialog({
                   ))}
                   {remainingCount > 0 && (
                     <div className="text-xs text-gray-500 italic">
-                      ... and {remainingCount} more transaction{remainingCount !== 1 ? 's' : ''}
+                      ... and {remainingCount} more transaction
+                      {remainingCount !== 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
@@ -75,7 +79,7 @@ export function BulkDeleteConfirmDialog({
           <AlertDialogCancel onClick={onClose} disabled={loading}>
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogAction
             onClick={onConfirm}
             disabled={loading}
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
@@ -86,7 +90,10 @@ export function BulkDeleteConfirmDialog({
                 Deleting...
               </>
             ) : (
-              <>Delete {selectedTransactions.length} Transaction{selectedTransactions.length !== 1 ? 's' : ''}</>
+              <>
+                Delete {selectedTransactions.length} Transaction
+                {selectedTransactions.length !== 1 ? "s" : ""}
+              </>
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

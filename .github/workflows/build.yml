@@ -2,14 +2,14 @@ name: Build and Release Desktop App
 
 on:
   push:
-    tags: ['v*']  # Only build on version tags
+    tags: ["v*"] # Only build on version tags
   pull_request:
     branches: [main]
 
 jobs:
   build-mac:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
