@@ -1,175 +1,192 @@
-const { app, BrowserWindow, shell, ipcMain, dialog } = require("electron");
-const { autoUpdater } = require("electron-updater");
-const path = require("path");
+// Replace your existing showDownloadDialog function with this enhanced version
 
-// This is the "main process" - it controls the application lifecycle
-let mainWindow = null;
-
-// Configure auto-updater for GitHub releases
-autoUpdater.setFeedURL({
-  provider: "github",
-  owner: "skander-fourati",
-  repo: "zawali",
-  private: false,
-});
-
-// Clean up auto-updater logging
-autoUpdater.logger = null; // Disable verbose logging
-
-// Check for updates when app starts (after 3 seconds delay)
-app.whenReady().then(() => {
-  setTimeout(() => {
-    console.log("🚀 Auto-updater: Starting update check...");
-    try {
-      autoUpdater.checkForUpdatesAndNotify();
-    } catch (error) {
-      console.error("❌ Auto-updater: Failed to check for updates:", error);
-    }
-  }, 3000);
-});
-
-// Auto-updater events (with better logging)
-autoUpdater.on("checking-for-update", () => {
-  console.log("🔍 Auto-updater: Checking for updates...");
-});
-
-autoUpdater.on("update-available", (info) => {
-  console.log("🎉 Auto-updater: Update available!", info.version);
-});
-
-autoUpdater.on("update-not-available", (info) => {
-  console.log("ℹ️ Auto-updater: No updates available. Current:", info.version);
-});
-
-autoUpdater.on("error", (error) => {
-  console.error("❌ Auto-updater error:", error.message);
-
-  // If code signing error, try to continue anyway - sometimes it still works
-  if (error.message.includes("Could not get code signature")) {
-    console.log(
-      "⚠️ Auto-updater: Code signing issue, but update might still work...",
-    );
-    // Don't show error dialog immediately - wait to see if update-downloaded fires
-  }
-});
-
-autoUpdater.on("download-progress", (progressObj) => {
-  // Only show progress every 25% to reduce spam
-  const percent = Math.round(progressObj.percent);
-  if (percent % 25 === 0 || percent > 95) {
-    console.log(`📥 Auto-updater: Download ${percent}%`);
-  }
-});
-
-autoUpdater.on("update-downloaded", (info) => {
-  console.log("✅ Auto-updater: Update downloaded!", info.version);
-
-  // Skip auto-install entirely, show download dialog immediately
-  showDownloadDialog(info.version);
-});
-
-// Show download dialog when update is ready
-function showDownloadDialog(version) {
+// Enhanced download dialog with release notes preview
+function showDownloadDialog(version, releaseInfo = null) {
   if (!mainWindow) return;
+
+  // Create release notes preview for the dialog
+  let shortNotes = "New features and improvements are ready!";
+  let hasReleaseNotes = false;
+
+  if (releaseInfo && releaseInfo.releaseNotes) {
+    // Extract key highlights from release notes (first few bullet points)
+    const notes = releaseInfo.releaseNotes;
+    
+    // Look for bullet points or major features
+    const bulletPoints = notes.match(/^[\s]*[-•*]\s*(.+)$/gm);
+    if (bulletPoints && bulletPoints.length > 0) {
+      shortNotes = bulletPoints.slice(0, 3).join('\n') + '\n\n...and more zawali goodness!';
+      hasReleaseNotes = true;
+    } else {
+      // Fallback: take first few lines
+      const lines = notes.split('\n').filter(line => line.trim().length > 0);
+      if (lines.length > 2) {
+        shortNotes = lines.slice(0, 3).join('\n') + '\n\n...and more!';
+        hasReleaseNotes = true;
+      }
+    }
+  } else {
+    // Default zawali-themed message when we don't have release notes
+    shortNotes = "🎉 New Portfolio features to help you grow from zawali to wealthy!\n📊 Better investment tracking and analytics\n💰 Your financial journey just got an upgrade!";
+  }
+
+  // Create the dialog with three options
+  const buttons = hasReleaseNotes 
+    ? ["Download Now", "View Full Release Notes", "Later"]
+    : ["Download Now", "View on GitHub", "Later"];
 
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type: "info",
-    title: "Update Available",
-    message: `Zawali ${version} is ready to download!`,
-    detail:
-      'A new version is available with the latest features and fixes. Click "Download" to get the update.',
-    buttons: ["Download Now", "Later"],
+    title: `🎉 Zawali ${version} - Marhaba to New Features!`,
+    message: `What's new for you, ya zawali:`,
+    detail: shortNotes + "\n\nReady to upgrade your financial game?",
+    buttons: buttons,
     defaultId: 0,
+    cancelId: 2,
+    icon: path.join(__dirname, '../public/favicon/web-app-manifest-512x512.png') // Your app icon
   });
 
   if (choice === 0) {
+    // Download Now
     console.log("🌐 Auto-updater: Opening download link for user");
-    // Open the direct download link for the DMG
     shell.openExternal(
-      `https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-${version}-universal.dmg`,
+      `https://github.com/skander-fourati/zawali/releases/latest/download/Zawali-${version}-universal.dmg`
+    );
+  } else if (choice === 1) {
+    // View Full Release Notes or View on GitHub
+    console.log("📋 Auto-updater: Opening full release notes");
+    shell.openExternal(
+      `https://github.com/skander-fourati/zawali/releases/latest`
     );
   } else {
+    // Later
     console.log("⏰ Auto-updater: User chose to download later");
   }
 }
 
-const createWindow = () => {
-  // Create the browser window
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true,
-    },
-    titleBarStyle: "default",
-    show: false,
-  });
-
-  // Determine what to load based on environment
-  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-
-  if (isDev) {
-    // In development: load from Vite dev server
-    mainWindow.loadURL("http://localhost:8080");
-    // Open DevTools in development
-    mainWindow.webContents.openDevTools();
-  } else {
-    // In production: load the built files
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-  }
-
-  // Show window when ready
-  mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
-    console.log("✅ Zawali Finance app loaded successfully!");
-    console.log("📦 App version:", app.getVersion());
-    console.log("🔄 Auto-updater configured for: skander-fourati/zawali");
-  });
-
-  // Handle external links
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
-
-  // Clean up when window is closed
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-};
-
-// App event handlers
-app.whenReady().then(createWindow);
-
-// Quit when all windows are closed
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
-
-// Re-create window when dock icon is clicked (macOS)
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-// Security: prevent navigation to external URLs
-app.on("web-contents-created", (event, contents) => {
-  contents.on("will-navigate", (navigationEvent, navigationURL) => {
-    const parsedUrl = new URL(navigationURL);
-
-    if (
-      parsedUrl.origin !== "http://localhost:8080" &&
-      parsedUrl.origin !== "file://"
-    ) {
-      navigationEvent.preventDefault();
-      shell.openExternal(navigationURL);
+// Enhanced function to fetch release notes from GitHub
+async function fetchReleaseNotes(version) {
+  try {
+    console.log(`🔍 Fetching release notes for version ${version}...`);
+    
+    const response = await fetch(
+      `https://api.github.com/repos/skander-fourati/zawali/releases/latest`,
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'Zawali-App'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API returned ${response.status}`);
     }
-  });
+    
+    const release = await response.json();
+    
+    return {
+      version: release.tag_name,
+      releaseNotes: release.body,
+      publishedAt: release.published_at,
+      htmlUrl: release.html_url
+    };
+    
+  } catch (error) {
+    console.log("⚠️ Could not fetch release notes from GitHub:", error.message);
+    return null;
+  }
+}
+
+// Updated auto-updater event handler
+autoUpdater.on("update-downloaded", async (info) => {
+  console.log("✅ Auto-updater: Update downloaded!", info.version);
+  
+  // Try to fetch detailed release notes
+  const releaseInfo = await fetchReleaseNotes(info.version);
+  
+  if (releaseInfo) {
+    console.log("📝 Auto-updater: Retrieved release notes from GitHub");
+    showDownloadDialog(info.version, releaseInfo);
+  } else {
+    console.log("📝 Auto-updater: Using fallback dialog (no release notes)");
+    showDownloadDialog(info.version, null);
+  }
 });
+
+// Optional: Add a manual "Check for Updates" menu item
+const { Menu } = require('electron');
+
+function createMenuTemplate() {
+  const template = [
+    {
+      label: 'Zawali',
+      submenu: [
+        {
+          label: 'About Zawali',
+          role: 'about'
+        },
+        {
+          label: 'Check for Updates...',
+          click: async () => {
+            console.log('🔍 Manual update check requested');
+            try {
+              await autoUpdater.checkForUpdatesAndNotify();
+            } catch (error) {
+              console.error('❌ Manual update check failed:', error);
+              
+              // Show error dialog
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Update Check',
+                message: 'Unable to check for updates',
+                detail: 'Please check your internet connection and try again later.',
+                buttons: ['OK']
+              });
+            }
+          }
+        },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' }
+      ]
+    }
+  ];
+
+  return template;
+}
+
+// Add this to your createWindow function, after the window is created:
+// const menu = Menu.buildFromTemplate(createMenuTemplate());
+// Menu.setApplicationMenu(menu);
