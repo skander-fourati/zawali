@@ -1,7 +1,7 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface ExpensesByCategoryProps {
   data: Array<{
@@ -17,39 +17,39 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
   // EXPLANATION: Fallback color palette for categories without user-defined colors
   // This ensures we always have colors even if some categories don't have colors set
   const fallbackColors = [
-    'hsl(220, 85%, 65%)', // Rich blue
-    'hsl(15, 80%, 65%)',  // Coral/salmon  
-    'hsl(200, 75%, 65%)', // Teal blue
-    'hsl(25, 75%, 65%)',  // Orange
-    'hsl(190, 70%, 55%)', // Cyan
-    'hsl(10, 70%, 60%)',  // Red
-    'hsl(35, 80%, 60%)',  // Amber
-    'hsl(160, 60%, 55%)', // Mint
-    'hsl(280, 60%, 65%)', // Magenta
-    'hsl(45, 85%, 60%)',  // Golden
-    'hsl(120, 50%, 55%)', // Forest green
-    'hsl(300, 70%, 60%)', // Pink
+    "hsl(220, 85%, 65%)", // Rich blue
+    "hsl(15, 80%, 65%)", // Coral/salmon
+    "hsl(200, 75%, 65%)", // Teal blue
+    "hsl(25, 75%, 65%)", // Orange
+    "hsl(190, 70%, 55%)", // Cyan
+    "hsl(10, 70%, 60%)", // Red
+    "hsl(35, 80%, 60%)", // Amber
+    "hsl(160, 60%, 55%)", // Mint
+    "hsl(280, 60%, 65%)", // Magenta
+    "hsl(45, 85%, 60%)", // Golden
+    "hsl(120, 50%, 55%)", // Forest green
+    "hsl(300, 70%, 60%)", // Pink
   ];
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
     }).format(value);
   };
 
   const formatPercentageChange = (change: number) => {
     const absChange = Math.abs(change);
-    const sign = change >= 0 ? '+' : '-';
+    const sign = change >= 0 ? "+" : "-";
     return `${sign}${absChange.toFixed(1)}%`;
   };
 
   // Get current month name for title
   const now = new Date();
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const monthName = lastMonth.toLocaleDateString('en-US', { 
-    month: 'long', 
-    year: 'numeric' 
+  const monthName = lastMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
   });
 
   // EXPLANATION: Process the data for the pie chart
@@ -59,9 +59,9 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
       ...item,
       amount: Math.abs(item.amount), // Convert negative to positive
       // Use database color if available, otherwise use fallback palette
-      finalColor: item.color || fallbackColors[index % fallbackColors.length]
+      finalColor: item.color || fallbackColors[index % fallbackColors.length],
     }))
-    .filter(item => item.amount > 0) // Only show categories with actual expenses
+    .filter((item) => item.amount > 0) // Only show categories with actual expenses
     .sort((a, b) => b.amount - a.amount); // Sort descending (biggest first)
 
   // EXPLANATION: Chart config now uses the actual colors from data
@@ -76,15 +76,15 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
   // EXPLANATION: Custom tooltip using the same beautiful styling as other charts, with percentage change
   const customTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
-    
+
     const data = payload[0].payload;
-    
+
     return (
       <div className="bg-card border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs">
         <p className="font-semibold text-foreground mb-2">{data.category}</p>
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center">
-            <div 
+            <div
               className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
               style={{ backgroundColor: data.finalColor }}
             />
@@ -97,12 +97,16 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
         {/* Show percentage change if available */}
         {data.percentageChange !== undefined && (
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
-            <span className="text-muted-foreground text-xs">vs Previous Month:</span>
-            <span className={`font-medium text-xs ml-2 ${
-              data.percentageChange >= 0 
-                ? 'text-destructive' // Red for increases (bad for expenses)
-                : 'text-success'    // Green for decreases (good for expenses)
-            }`}>
+            <span className="text-muted-foreground text-xs">
+              vs Previous Month:
+            </span>
+            <span
+              className={`font-medium text-xs ml-2 ${
+                data.percentageChange >= 0
+                  ? "text-destructive" // Red for increases (bad for expenses)
+                  : "text-success" // Green for decreases (good for expenses)
+              }`}
+            >
               {formatPercentageChange(data.percentageChange)}
             </span>
           </div>
@@ -142,20 +146,22 @@ export function ExpensesByCategory({ data }: ExpensesByCategoryProps) {
             <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 60 }}>
               <Pie
                 data={processedData}
-                cx="30%" 
-                cy="50%" 
-                outerRadius={130} 
-                fill="#8884d8" 
-                dataKey="amount" 
+                cx="30%"
+                cy="50%"
+                outerRadius={130}
+                fill="#8884d8"
+                dataKey="amount"
                 label={({ category, percent }) => {
-                  return percent >= 0.05 ? `${category} (${(percent * 100).toFixed(0)}%)` : null;
+                  return percent >= 0.05
+                    ? `${category} (${(percent * 100).toFixed(0)}%)`
+                    : null;
                 }}
                 labelLine={true}
               >
                 {/* EXPLANATION: Each slice gets its resolved color (database color or fallback) */}
                 {processedData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
+                  <Cell
+                    key={`cell-${index}`}
                     fill={entry.finalColor} /* Use the resolved color */
                   />
                 ))}

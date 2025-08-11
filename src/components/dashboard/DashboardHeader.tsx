@@ -8,7 +8,10 @@ interface DashboardHeaderProps {
   onTransactionsUploaded?: () => void;
 }
 
-export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded }: DashboardHeaderProps) {
+export function DashboardHeader({
+  onAddTransactionClick,
+  onTransactionsUploaded,
+}: DashboardHeaderProps) {
   const { user } = useAuth();
 
   const getZawaliGreeting = () => {
@@ -42,9 +45,9 @@ export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded 
       "Your bank account's villain origin story",
       "Broke but make it aesthetic",
       "Welcome to the penny-pinching palace",
-      "Your financial chaos command center"
+      "Your financial chaos command center",
     ];
-    
+
     // Truly random selection on every render for maximum surprise
     return greetings[Math.floor(Math.random() * greetings.length)];
   };
@@ -55,7 +58,8 @@ export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded 
         <div className="space-y-3">
           <div>
             <h1 className="text-4xl font-bold mb-2 zawali-bounce">
-              <span className="text-zawali-gradient">The Zawali's</span> Dashboard
+              <span className="text-zawali-gradient">The Zawali's</span>{" "}
+              Dashboard
             </h1>
             <div className="flex items-center gap-2">
               <span className="text-2xl zawali-float">💸</span>
@@ -65,14 +69,14 @@ export function DashboardHeader({ onAddTransactionClick, onTransactionsUploaded 
             </div>
           </div>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 min-w-fit">
-          <TransactionUploadButton 
+          <TransactionUploadButton
             onTransactionsUploaded={onTransactionsUploaded}
             className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105 flex items-center justify-center"
           />
-          
-          <Button 
+
+          <Button
             variant="secondary"
             onClick={onAddTransactionClick}
             className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white border-white/20 transition-all duration-200 hover:scale-105 zawali-bounce flex items-center justify-center"

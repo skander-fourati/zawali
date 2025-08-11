@@ -21,7 +21,7 @@ export function DeleteConfirmDialog({
   isOpen,
   onClose,
   onConfirm,
-  transactionDescription
+  transactionDescription,
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -29,16 +29,16 @@ export function DeleteConfirmDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete this transaction? This action cannot be undone.
-            <br /><br />
+            Are you sure you want to delete this transaction? This action cannot
+            be undone.
+            <br />
+            <br />
             <strong>Transaction:</strong> {transactionDescription}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction 
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             onClick={onConfirm}
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
           >

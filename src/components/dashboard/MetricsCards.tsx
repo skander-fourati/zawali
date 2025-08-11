@@ -11,31 +11,32 @@ interface MetricsCardsProps {
   averageIncome12Months: number; // NEW: Add 12-month average
 }
 
-export function MetricsCards({ 
+export function MetricsCards({
   totalSavings,
   totalInvestments,
-  monthlyIncome, 
+  monthlyIncome,
   monthlyExpenses,
   lastMonthIncome,
   lastMonthExpenses,
-  averageIncome12Months
+  averageIncome12Months,
 }: MetricsCardsProps) {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(Math.round(amount));
   };
 
   // Calculate percentage change for expenses
-  const expenseChange = lastMonthExpenses > 0 
-    ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 
-    : 0;
+  const expenseChange =
+    lastMonthExpenses > 0
+      ? ((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100
+      : 0;
 
   const formatPercentage = (percent: number) => {
-    const sign = percent >= 0 ? '+' : '';
+    const sign = percent >= 0 ? "+" : "";
     return `${sign}${percent.toFixed(1)}%`;
   };
 
@@ -50,12 +51,12 @@ export function MetricsCards({
           <PiggyBank className="h-4 w-4 text-success" />
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${totalSavings >= 0 ? 'text-success' : 'text-destructive'}`}>
+          <div
+            className={`text-2xl font-bold ${totalSavings >= 0 ? "text-success" : "text-destructive"}`}
+          >
             {formatCurrency(totalSavings)}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Cumulative all-time
-          </p>
+          <p className="text-xs text-muted-foreground">Cumulative all-time</p>
         </CardContent>
       </Card>
 
@@ -68,12 +69,12 @@ export function MetricsCards({
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${totalInvestments >= 0 ? 'text-primary' : 'text-destructive'}`}>
+          <div
+            className={`text-2xl font-bold ${totalInvestments >= 0 ? "text-primary" : "text-destructive"}`}
+          >
             {formatCurrency(totalInvestments)}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Net invested all-time
-          </p>
+          <p className="text-xs text-muted-foreground">Net invested all-time</p>
         </CardContent>
       </Card>
 
@@ -86,7 +87,9 @@ export function MetricsCards({
           <TrendingUp className="h-4 w-4 text-success" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-success">{formatCurrency(lastMonthIncome)}</div>
+          <div className="text-2xl font-bold text-success">
+            {formatCurrency(lastMonthIncome)}
+          </div>
           <p className="text-xs text-muted-foreground">
             12mo avg: {formatCurrency(averageIncome12Months)}
           </p>
@@ -102,12 +105,16 @@ export function MetricsCards({
           <TrendingDown className="h-4 w-4 text-destructive" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-destructive">{formatCurrency(monthlyExpenses)}</div>
+          <div className="text-2xl font-bold text-destructive">
+            {formatCurrency(monthlyExpenses)}
+          </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
               Last month: {formatCurrency(lastMonthExpenses)}
             </span>
-            <span className={`font-medium ${expenseChange <= 0 ? 'text-success' : 'text-destructive'}`}>
+            <span
+              className={`font-medium ${expenseChange <= 0 ? "text-success" : "text-destructive"}`}
+            >
               {formatPercentage(expenseChange)}
             </span>
           </div>

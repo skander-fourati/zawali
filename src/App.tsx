@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import TransactionsPage from "./pages/TransactionsPage";
 import ManageDataPage from "./pages/ManageDataPage";
 import InsightsPage from "./pages/InsightsPage";
+import PortfolioPage from "./pages/PortfolioPage";
 
 const queryClient = new QueryClient();
 
@@ -33,41 +34,64 @@ const AppRoutes = () => {
     <Routes>
       {/* Auth page doesn't need sidebar */}
       <Route path="/auth" element={<Auth />} />
-      
+
       {/* Redirect root to appropriate page based on auth status */}
-      <Route path="/" element={
-        user ? (
-          <AppLayout>
-            <Index />
-          </AppLayout>
-        ) : (
-          <Navigate to="/auth" replace />
-        )
-      } />
-      
+      <Route
+        path="/"
+        element={
+          user ? (
+            <AppLayout>
+              <Index />
+            </AppLayout>
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+
       {/* All other protected routes use the app layout with sidebar */}
-      <Route path="/transactions" element={
-        <AppLayout>
-          <TransactionsPage />
-        </AppLayout>
-      } />
-      <Route path="/insights" element={
-        <AppLayout>
-          <InsightsPage />
-        </AppLayout>
-      } />
-      <Route path="/manage-data" element={
-        <AppLayout>
-          <ManageDataPage />
-        </AppLayout>
-      } />
-      
+      <Route
+        path="/transactions"
+        element={
+          <AppLayout>
+            <TransactionsPage />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/insights"
+        element={
+          <AppLayout>
+            <InsightsPage />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/portfolio"
+        element={
+          <AppLayout>
+            <PortfolioPage />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/manage-data"
+        element={
+          <AppLayout>
+            <ManageDataPage />
+          </AppLayout>
+        }
+      />
+
       {/* Catch-all route */}
-      <Route path="*" element={
-        <AppLayout>
-          <NotFound />
-        </AppLayout>
-      } />
+      <Route
+        path="*"
+        element={
+          <AppLayout>
+            <NotFound />
+          </AppLayout>
+        }
+      />
     </Routes>
   );
 };
