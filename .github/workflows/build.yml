@@ -36,6 +36,27 @@ jobs:
           SANITIZED_NAME="${REF_NAME//\//-}"
           echo "sanitized_ref_name=${SANITIZED_NAME}" >> $GITHUB_OUTPUT
 
+      # Check if release notes file exists and validate it
+      - name: Check for release notes
+        id: release_notes
+        run: |
+          NOTES_FILE="releases/${{ github.ref_name }}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            # Check if it's still the template (has placeholder text)
+            if grep -q "{VERSION}" "$NOTES_FILE"; then
+              echo "❌ Release notes file exists but contains template placeholders!"
+              echo "Please complete $NOTES_FILE before releasing."
+              exit 1
+            else
+              echo "notes_exist=true" >> $GITHUB_OUTPUT
+              echo "notes_file=$NOTES_FILE" >> $GITHUB_OUTPUT
+              echo "✅ Found completed release notes at $NOTES_FILE"
+            fi
+          else
+            echo "notes_exist=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No release notes found at $NOTES_FILE - will use auto-generated notes"
+          fi
+
       # Upload artifacts for debugging
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -46,8 +67,25 @@ jobs:
             dist-electron/*.blockmap
             dist-electron/latest-mac.yml
 
-      # Create GitHub release with ALL necessary files
-      - name: Create GitHub Release
+      # Create GitHub release with custom release notes (if they exist)
+      - name: Create GitHub Release (with custom notes)
+        if: steps.release_notes.outputs.notes_exist == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist-electron/*.dmg
+            dist-electron/*.zip
+            dist-electron/*.blockmap
+            dist-electron/latest-mac.yml
+          body_path: ${{ steps.release_notes.outputs.notes_file }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Fallback: Create GitHub release with auto-generated notes
+      - name: Create GitHub Release (auto-generated)
+        if: steps.release_notes.outputs.notes_exist == 'false'
         uses: softprops/action-gh-release@v1
         with:
           files: |
