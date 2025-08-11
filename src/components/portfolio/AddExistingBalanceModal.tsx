@@ -34,6 +34,7 @@ interface TickerBalance {
   is_new: boolean;
   is_editing: boolean; // Add editing state
   existing_balance?: number;
+  account_id?: string; // Add account_id for account-specific editing
 }
 
 interface AddExistingBalanceModalProps {
@@ -42,6 +43,7 @@ interface AddExistingBalanceModalProps {
   onSave: () => void;
   accounts: any[];
   investments: any[];
+  transactions: any[]; // Changed from Transaction[] to any[]
 }
 
 export function AddExistingBalanceModal({
@@ -50,6 +52,7 @@ export function AddExistingBalanceModal({
   onSave,
   accounts,
   investments,
+  transactions,
 }: AddExistingBalanceModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -83,27 +86,51 @@ export function AddExistingBalanceModal({
   const handleAccountSelect = (accountId: string) => {
     setSelectedAccountId(accountId);
 
-    // Initialize with existing tickers
-    const existingTickers = investments.map((inv) => ({
-      id: inv.id,
-      ticker: inv.ticker,
-      investment_type: inv.investment_type,
-      current_value: "",
-      currency: "GBP",
-      purchase_date: "",
-      growth_rate: "",
-      is_new: false,
-      is_editing: false, // Start in non-editing state
-      existing_balance: inv.current_market_value || 0,
-    }));
+    // Build investment-to-accounts mapping from transactions
+    const investmentAccountMapping = new Map<string, Set<string>>();
+    transactions
+      .filter((t) => t.investment_id && t.category?.name === "Investment")
+      .forEach((t) => {
+        if (t.investment_id && t.account?.id) {
+          if (!investmentAccountMapping.has(t.investment_id)) {
+            investmentAccountMapping.set(t.investment_id, new Set());
+          }
+          investmentAccountMapping.get(t.investment_id)!.add(t.account.id);
+        }
+      });
 
-    setTickerBalances(existingTickers);
+    // Create ticker balances for each investment-account combination
+    const accountSpecificTickers: TickerBalance[] = [];
+
+    investments.forEach((inv) => {
+      const accountsForInvestment =
+        investmentAccountMapping.get(inv.id) || new Set();
+
+      // If this investment exists in the selected account, add it
+      if (accountsForInvestment.has(accountId)) {
+        accountSpecificTickers.push({
+          id: inv.id,
+          ticker: inv.ticker,
+          investment_type: inv.investment_type,
+          current_value: "",
+          currency: "GBP",
+          purchase_date: "",
+          growth_rate: "",
+          is_new: false,
+          is_editing: false,
+          existing_balance: inv.current_market_value || 0,
+          account_id: accountId, // Add account_id to track which account this is for
+        });
+      }
+    });
+
+    setTickerBalances(accountSpecificTickers);
     setStep(2);
   };
 
   const addNewTicker = () => {
+    // Add new ticker at the TOP of the list
     setTickerBalances((prev) => [
-      ...prev,
       {
         ticker: "",
         investment_type: "",
@@ -113,7 +140,9 @@ export function AddExistingBalanceModal({
         growth_rate: "",
         is_new: true,
         is_editing: true, // New tickers are editable by default
+        account_id: selectedAccountId, // Assign to the selected account
       },
+      ...prev, // Existing tickers come after
     ]);
   };
 
@@ -291,14 +320,17 @@ export function AddExistingBalanceModal({
           totalGrowthPercent,
         );
 
+        // Use the ticker's specific account_id
+        const targetAccountId = ticker.account_id || selectedAccountId;
+
         // 1. Handle override for existing tickers being edited
         if (!ticker.is_new && ticker.is_editing) {
-          // Delete existing investment transactions for this ticker in this account
+          // Delete existing investment transactions for this ticker in THIS SPECIFIC account
           const { error: deleteTransactionsError } = await supabase
             .from("transactions")
             .delete()
             .eq("investment_id", ticker.id)
-            .eq("account_id", selectedAccountId)
+            .eq("account_id", targetAccountId)
             .eq("user_id", user.id);
 
           if (deleteTransactionsError) {
@@ -309,11 +341,12 @@ export function AddExistingBalanceModal({
             // Continue anyway - might not have had transactions
           }
 
-          // Delete existing market values for this ticker
+          // Delete existing market values for this ticker in THIS SPECIFIC account
           const { error: deleteMarketValuesError } = await supabase
             .from("investment_market_values")
             .delete()
-            .eq("investment_id", ticker.id);
+            .eq("investment_id", ticker.id)
+            .eq("account_id", targetAccountId); // Account-specific deletion
 
           if (deleteMarketValuesError) {
             console.warn(
@@ -342,7 +375,7 @@ export function AddExistingBalanceModal({
           investmentId = investmentData.id;
         }
 
-        // 3. Check for existing market values in ±3 month window (only needed for logic above)
+        // 3. Check for existing market values in ±3 month window for THIS SPECIFIC account
         const today = new Date();
         const threeMonthsBefore = new Date(today);
         threeMonthsBefore.setMonth(today.getMonth() - 3);
@@ -356,11 +389,12 @@ export function AddExistingBalanceModal({
           // For edited existing tickers, we already deleted old data, so create new data
           shouldCreateMarketValues = true;
         } else if (!ticker.is_new) {
-          // For non-edited existing tickers, check if data exists in window
+          // For non-edited existing tickers, check if data exists in window for THIS SPECIFIC account
           const { data: existingValues } = await supabase
             .from("investment_market_values")
             .select("*")
             .eq("investment_id", investmentId)
+            .eq("account_id", targetAccountId) // Account-specific check
             .gte("updated_at", threeMonthsBefore.toISOString())
             .lte("updated_at", threeMonthsAfter.toISOString());
 
@@ -393,6 +427,7 @@ export function AddExistingBalanceModal({
 
             marketValueInserts.push({
               investment_id: investmentId,
+              account_id: targetAccountId, // CRITICAL: Use the specific account_id
               market_value: monthlyValue,
               updated_at: date.toISOString(),
             });
@@ -428,7 +463,7 @@ export function AddExistingBalanceModal({
               amount_gbp: purchaseAmount,
               exchange_rate: ticker.currency === "USD" ? 0.79 : 1.0,
               category_id: investmentCategory.id,
-              account_id: selectedAccountId,
+              account_id: targetAccountId, // Use the specific account_id
               transaction_type: "expense",
               investment_id: investmentId,
             });
@@ -447,7 +482,7 @@ export function AddExistingBalanceModal({
               amount_gbp: 0,
               exchange_rate: 1.0,
               category_id: investmentCategory.id,
-              account_id: selectedAccountId,
+              account_id: targetAccountId, // Use the specific account_id
               transaction_type: "expense",
               investment_id: investmentId,
             });
@@ -461,7 +496,7 @@ export function AddExistingBalanceModal({
       ).length;
       const newCount = completedTickers.filter((t) => t.is_new).length;
 
-      let successMessage = `Successfully processed ${completedTickers.length} ticker${completedTickers.length !== 1 ? "s" : ""}`;
+      let successMessage = `Successfully processed ${completedTickers.length} ticker${completedTickers.length !== 1 ? "s" : ""} in ${getSelectedAccountName()}`;
       if (updatedCount > 0 && newCount > 0) {
         successMessage += ` (${newCount} new, ${updatedCount} updated)`;
       } else if (updatedCount > 0) {
@@ -593,7 +628,7 @@ export function AddExistingBalanceModal({
               <div className="space-y-4">
                 {tickerBalances.map((ticker, index) => (
                   <Card key={index} className="relative">
-                    <CardHeader className="pb-4">
+                    <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">
                           {ticker.is_new ? (
@@ -643,7 +678,7 @@ export function AddExistingBalanceModal({
                       </div>
                     </CardHeader>
 
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                       {/* Warning for existing tickers with transaction history */}
                       {tickerWarnings[index] && ticker.is_editing && (
                         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
@@ -850,8 +885,9 @@ export function AddExistingBalanceModal({
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center p-6 text-muted-foreground">
-                          <p>
+                        // COMPACT VERSION: Much smaller when not editing
+                        <div className="py-2">
+                          <p className="text-sm text-muted-foreground text-center">
                             Click "Edit" to add balance information for this
                             ticker
                           </p>

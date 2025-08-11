@@ -17,16 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Search,
-  Filter,
-  X,
-  Edit3,
-  Trash,
-} from "lucide-react";
+import { Plus, Edit, Trash2, Search, Filter, X, Trash } from "lucide-react";
 
 interface TransactionsModalProps {
   isOpen: boolean;
@@ -62,9 +53,9 @@ export function TransactionsModal({
   const [sortField, setSortField] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [accountFilter, setAccountFilter] = useState("all");
-  const [tripFilter, setTripFilter] = useState("all");
+  const [tickerFilter, setTickerFilter] = useState("all");
+  const [investmentTypeFilter, setInvestmentTypeFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<
     Set<string>
@@ -105,6 +96,21 @@ export function TransactionsModal({
     };
   }, []);
 
+  // Get unique tickers and investment types for filters
+  const uniqueTickers = useMemo(() => {
+    const tickers = investmentTransactions
+      .map((t: any) => t.investment?.ticker)
+      .filter(Boolean);
+    return [...new Set(tickers)].sort();
+  }, [investmentTransactions]);
+
+  const uniqueInvestmentTypes = useMemo(() => {
+    const types = investmentTransactions
+      .map((t: any) => t.investment?.investment_type)
+      .filter(Boolean);
+    return [...new Set(types)].sort();
+  }, [investmentTransactions]);
+
   // Transaction filtering and sorting logic
   const filteredAndSortedInvestmentTransactions = useMemo(() => {
     let filtered = [...investmentTransactions];
@@ -116,19 +122,23 @@ export function TransactionsModal({
       );
     }
 
-    // Category filter
-    if (categoryFilter && categoryFilter !== "all") {
-      filtered = filtered.filter((t: any) => t.category_id === categoryFilter);
-    }
-
     // Account filter
     if (accountFilter && accountFilter !== "all") {
       filtered = filtered.filter((t: any) => t.account_id === accountFilter);
     }
 
-    // Trip filter
-    if (tripFilter && tripFilter !== "all") {
-      filtered = filtered.filter((t: any) => t.trip_id === tripFilter);
+    // Ticker filter
+    if (tickerFilter && tickerFilter !== "all") {
+      filtered = filtered.filter(
+        (t: any) => t.investment?.ticker === tickerFilter,
+      );
+    }
+
+    // Investment type filter
+    if (investmentTypeFilter && investmentTypeFilter !== "all") {
+      filtered = filtered.filter(
+        (t: any) => t.investment?.investment_type === investmentTypeFilter,
+      );
     }
 
     // Sort
@@ -148,6 +158,14 @@ export function TransactionsModal({
           aValue = a.amount_gbp || 0;
           bValue = b.amount_gbp || 0;
           break;
+        case "ticker":
+          aValue = a.investment?.ticker?.toLowerCase() || "";
+          bValue = b.investment?.ticker?.toLowerCase() || "";
+          break;
+        case "investment_type":
+          aValue = a.investment?.investment_type?.toLowerCase() || "";
+          bValue = b.investment?.investment_type?.toLowerCase() || "";
+          break;
         default:
           return 0;
       }
@@ -161,9 +179,9 @@ export function TransactionsModal({
   }, [
     investmentTransactions,
     searchQuery,
-    categoryFilter,
     accountFilter,
-    tripFilter,
+    tickerFilter,
+    investmentTypeFilter,
     sortField,
     sortDirection,
   ]);
@@ -238,9 +256,9 @@ export function TransactionsModal({
 
   const clearFilters = () => {
     setSearchQuery("");
-    setCategoryFilter("all");
     setAccountFilter("all");
-    setTripFilter("all");
+    setTickerFilter("all");
+    setInvestmentTypeFilter("all");
   };
 
   const clearAllSelections = () => {
@@ -258,34 +276,29 @@ export function TransactionsModal({
   };
 
   // Helper functions for display
-  const getCategoryName = (categoryId: string | null) => {
-    if (!categoryId) return "Uncategorized";
-    const category = categories.find((c: any) => c.id === categoryId);
-    return category?.name || "Unknown";
-  };
-
-  const getCategoryColor = (categoryId: string | null) => {
-    if (!categoryId) return "#6b7280";
-    const category = categories.find((c: any) => c.id === categoryId);
-    return category?.color || "#6b7280";
-  };
-
   const getAccountName = (accountId: string | null) => {
     if (!accountId) return "Unknown Account";
     const account = accounts.find((a: any) => a.id === accountId);
     return account?.name || "Unknown Account";
   };
 
-  const getTripName = (tripId: string | null) => {
-    if (!tripId) return null;
-    const trip = trips.find((t: any) => t.id === tripId);
-    return trip?.name || null;
+  const getAccountColor = (accountId: string | null) => {
+    if (!accountId) return "hsl(var(--muted))";
+    const account = accounts.find((a: any) => a.id === accountId);
+    return account?.color || "hsl(var(--muted))";
   };
 
-  const getFamilyMemberName = (familyMemberId: string | null) => {
-    if (!familyMemberId) return null;
-    const member = familyMembers.find((m: any) => m.id === familyMemberId);
-    return member?.name || null;
+  const getInvestmentTypeColor = (investmentType: string | null) => {
+    if (!investmentType) return "hsl(var(--muted))";
+    // This would ideally come from the investment_type_detail in the transaction
+    // But for now we can use a fallback color mapping
+    const transaction = investmentTransactions.find(
+      (t: any) => t.investment?.investment_type === investmentType,
+    );
+    return (
+      transaction?.investment?.investment_type_detail?.color ||
+      "hsl(var(--muted))"
+    );
   };
 
   const totalPages = Math.ceil(
@@ -327,17 +340,6 @@ export function TransactionsModal({
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      onBulkEdit(Array.from(selectedTransactionIds))
-                    }
-                    className="flex items-center gap-2"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                    Edit ({selectedTransactionIds.size})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
                       onBulkDelete(Array.from(selectedTransactionIds))
                     }
                     className="flex items-center gap-2 text-destructive hover:text-destructive"
@@ -359,7 +361,7 @@ export function TransactionsModal({
               <Button
                 onClick={onAddTransaction}
                 size="sm"
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 mr-8"
               >
                 <Plus className="h-4 w-4" />
                 Add Transaction
@@ -388,18 +390,18 @@ export function TransactionsModal({
             >
               <Filter className="h-4 w-4" />
               Filters
-              {(categoryFilter !== "all" ||
-                accountFilter !== "all" ||
-                tripFilter !== "all") && (
+              {(accountFilter !== "all" ||
+                tickerFilter !== "all" ||
+                investmentTypeFilter !== "all") && (
                 <Badge
                   variant="secondary"
                   className="ml-1 px-1.5 py-0.5 text-xs"
                 >
                   {
                     [
-                      categoryFilter !== "all",
                       accountFilter !== "all",
-                      tripFilter !== "all",
+                      tickerFilter !== "all",
+                      investmentTypeFilter !== "all",
                     ].filter(Boolean).length
                   }
                 </Badge>
@@ -410,30 +412,7 @@ export function TransactionsModal({
           {showFilters && (
             <Card className="p-3">
               <CardContent className="p-0">
-                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 mb-3">
-                  <Select
-                    value={categoryFilter}
-                    onValueChange={setCategoryFilter}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {categories.map((category: any) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: category.color }}
-                            />
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                   <Select
                     value={accountFilter}
                     onValueChange={setAccountFilter}
@@ -445,21 +424,55 @@ export function TransactionsModal({
                       <SelectItem value="all">All Accounts</SelectItem>
                       {accounts.map((account: any) => (
                         <SelectItem key={account.id} value={account.id}>
-                          {account.name}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  account.color || "hsl(var(--muted))",
+                              }}
+                            />
+                            {account.name}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  <Select value={tripFilter} onValueChange={setTripFilter}>
+                  <Select value={tickerFilter} onValueChange={setTickerFilter}>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="All Trips" />
+                      <SelectValue placeholder="All Tickers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Trips</SelectItem>
-                      {trips.map((trip: any) => (
-                        <SelectItem key={trip.id} value={trip.id}>
-                          {trip.name}
+                      <SelectItem value="all">All Tickers</SelectItem>
+                      {uniqueTickers.map((ticker: string) => (
+                        <SelectItem key={ticker} value={ticker}>
+                          <span className="font-mono text-sm">{ticker}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={investmentTypeFilter}
+                    onValueChange={setInvestmentTypeFilter}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="All Investment Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Investment Types</SelectItem>
+                      {uniqueInvestmentTypes.map((type: string) => (
+                        <SelectItem key={type} value={type}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{
+                                backgroundColor: getInvestmentTypeColor(type),
+                              }}
+                            />
+                            {type}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -477,23 +490,23 @@ export function TransactionsModal({
                 </div>
 
                 {/* Active filters indicators */}
-                {(categoryFilter !== "all" ||
-                  accountFilter !== "all" ||
-                  tripFilter !== "all") && (
+                {(accountFilter !== "all" ||
+                  tickerFilter !== "all" ||
+                  investmentTypeFilter !== "all") && (
                   <div className="flex flex-wrap gap-1 pt-2 border-t">
-                    {categoryFilter !== "all" && (
-                      <Badge variant="outline" className="text-xs h-5 px-2">
-                        Category: {getCategoryName(categoryFilter)}
-                      </Badge>
-                    )}
                     {accountFilter !== "all" && (
                       <Badge variant="outline" className="text-xs h-5 px-2">
                         Account: {getAccountName(accountFilter)}
                       </Badge>
                     )}
-                    {tripFilter !== "all" && (
+                    {tickerFilter !== "all" && (
                       <Badge variant="outline" className="text-xs h-5 px-2">
-                        Trip: {getTripName(tripFilter)}
+                        Ticker: {tickerFilter}
+                      </Badge>
+                    )}
+                    {investmentTypeFilter !== "all" && (
+                      <Badge variant="outline" className="text-xs h-5 px-2">
+                        Type: {investmentTypeFilter}
                       </Badge>
                     )}
                   </div>
@@ -574,11 +587,23 @@ export function TransactionsModal({
                         {sortField === "description" &&
                           (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
-                      <th className="text-left p-3 font-medium">Category</th>
+                      <th
+                        className="text-left p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
+                        onClick={() => handleSort("ticker")}
+                      >
+                        Ticker{" "}
+                        {sortField === "ticker" &&
+                          (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th
+                        className="text-left p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
+                        onClick={() => handleSort("investment_type")}
+                      >
+                        Investment Type{" "}
+                        {sortField === "investment_type" &&
+                          (sortDirection === "asc" ? "↑" : "↓")}
+                      </th>
                       <th className="text-left p-3 font-medium">Account</th>
-                      <th className="text-left p-3 font-medium">Trip</th>
-                      <th className="text-left p-3 font-medium">Family</th>
-                      <th className="text-left p-3 font-medium">Encord</th>
                       <th
                         className="text-right p-3 font-medium cursor-pointer hover:bg-muted/70 transition-colors"
                         onClick={() => handleSort("amount_gbp")}
@@ -642,70 +667,51 @@ export function TransactionsModal({
                             </div>
                           </td>
                           <td className="p-3 text-sm">
-                            <Badge
-                              variant="secondary"
-                              className="text-xs font-medium border"
-                              style={{
-                                backgroundColor: `${getCategoryColor(transaction.category_id)}20`,
-                                borderColor: getCategoryColor(
-                                  transaction.category_id,
-                                ),
-                                color: getCategoryColor(
-                                  transaction.category_id,
-                                ),
-                              }}
-                            >
-                              {getCategoryName(transaction.category_id)}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground">
-                            {getAccountName(transaction.account_id)}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {getTripName(transaction.trip_id) ? (
-                              <Badge variant="outline" className="text-xs">
-                                {getTripName(transaction.trip_id)}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {getFamilyMemberName(
-                              transaction.family_member_id,
-                            ) ? (
-                              <div className="flex items-center gap-1.5">
-                                <div
-                                  className="w-2 h-2 rounded-full"
-                                  style={{
-                                    backgroundColor:
-                                      transaction.family_member?.color ||
-                                      "#gray",
-                                  }}
-                                />
-                                <span className="text-xs">
-                                  {getFamilyMemberName(
-                                    transaction.family_member_id,
-                                  )}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {transaction.encord_expensable ? (
+                            {transaction.investment?.ticker ? (
                               <Badge
-                                variant="secondary"
-                                className="text-xs bg-success/20 text-success border-success/40"
+                                variant="outline"
+                                className="text-xs font-mono font-medium"
                               >
-                                Yes
+                                {transaction.investment.ticker}
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                No
-                              </Badge>
+                              <span className="text-muted-foreground">-</span>
                             )}
+                          </td>
+                          <td className="p-3 text-sm">
+                            {transaction.investment?.investment_type ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-medium"
+                                style={{
+                                  borderColor: getInvestmentTypeColor(
+                                    transaction.investment.investment_type,
+                                  ),
+                                  color: getInvestmentTypeColor(
+                                    transaction.investment.investment_type,
+                                  ),
+                                }}
+                              >
+                                {transaction.investment.investment_type}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{
+                                  backgroundColor: getAccountColor(
+                                    transaction.account_id,
+                                  ),
+                                }}
+                              />
+                              <span className="text-muted-foreground">
+                                {getAccountName(transaction.account_id)}
+                              </span>
+                            </div>
                           </td>
                           <td className="p-3 text-sm text-right font-mono">
                             <span

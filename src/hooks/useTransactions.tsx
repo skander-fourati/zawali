@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { shouldIncludeInPortfolioBreakdown } from "@/components/portfolio/investments";
 
+// New interface for investment types with colors
+export interface InvestmentType {
+  id: string;
+  name: string;
+  color: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -25,6 +34,7 @@ export interface Transaction {
     id: string;
     name: string;
     account_type: string;
+    color: string; // Added color to account
   };
   trip: {
     id: string;
@@ -40,6 +50,10 @@ export interface Transaction {
     id: string;
     ticker: string;
     investment_type: string;
+    investment_type_detail?: {
+      name: string;
+      color: string;
+    }; // Added investment type details with color
   } | null;
 }
 
@@ -55,6 +69,7 @@ export interface Account {
   name: string;
   account_type: string;
   currency: string;
+  color: string; // Added color field
 }
 
 export interface Trip {
@@ -75,20 +90,24 @@ export interface FamilyMember {
   updated_at?: string;
 }
 
-// FIXED: Made all calculated fields required with default values
+// Updated Investment interface with investment type details
 export interface Investment {
   id: string;
   user_id: string;
   ticker: string;
   investment_type: string;
+  investment_type_id?: string; // Added for new foreign key
+  investment_type_detail?: {
+    name: string;
+    color: string;
+  }; // Added investment type details with color
   created_at?: string;
   updated_at?: string;
-  // Calculated fields from the view - now required with defaults
+  // These are now calculated across all accounts for this investment
   current_market_value: number;
   market_value_updated_at: string | null;
   total_invested: number;
   transaction_count: number;
-  // Performance calculations - now required with defaults
   total_return: number;
   return_percentage: number;
 }
@@ -96,6 +115,7 @@ export interface Investment {
 export interface InvestmentMarketValue {
   id: string;
   investment_id: string;
+  account_id: string;
   market_value: number;
   updated_at: string;
 }
@@ -118,6 +138,8 @@ export function useTransactions() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([]); // Added investment types state
+  const [marketValues, setMarketValues] = useState<InvestmentMarketValue[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -127,40 +149,140 @@ export function useTransactions() {
     }
   }, [user]);
 
-  // FIXED: Helper function to calculate investment metrics from transactions
+  // Helper function to get exactly 1 market value for each investment/account combination
+  const getMostRecentMarketValues = (marketValues: InvestmentMarketValue[]) => {
+    // Filter out records with null account_id (bad migration data)
+    const validMarketValues = marketValues.filter(
+      (mv) => mv.account_id != null,
+    );
+
+    const grouped = validMarketValues.reduce(
+      (acc, mv) => {
+        const key = `${mv.investment_id}-${mv.account_id}`;
+        // Only keep the first one for each combination (since they all have same date after migration)
+        // Or use the one with highest ID if multiple exist
+        if (!acc[key] || mv.id > acc[key].id) {
+          acc[key] = mv;
+        }
+        return acc;
+      },
+      {} as Record<string, InvestmentMarketValue>,
+    );
+
+    return Object.values(grouped);
+  };
+
+  // Helper function to get default market value from latest transaction for a specific investment/account
+  const getDefaultMarketValueFromTransactions = (
+    investmentId: string,
+    accountId: string,
+    transactions: Transaction[],
+  ) => {
+    const relevantTransactions = transactions
+      .filter(
+        (t) =>
+          t.investment_id === investmentId &&
+          t.account?.id === accountId &&
+          t.category?.name === "Investment" &&
+          Math.abs(t.amount_gbp || 0) > 0,
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (relevantTransactions.length === 0) {
+      return 0;
+    }
+
+    const totalInvested = relevantTransactions.reduce((sum, t) => {
+      const amount = t.amount_gbp || 0;
+      if (amount > 0) {
+        return sum + amount;
+      } else {
+        return sum - Math.abs(amount);
+      }
+    }, 0);
+
+    return Math.max(0, totalInvested);
+  };
+
+  // Calculate investment metrics across all accounts
   const calculateInvestmentMetrics = (
     investmentId: string,
     transactions: Transaction[],
     marketValues: InvestmentMarketValue[],
   ) => {
-    // Get all investment transactions for this specific investment
+    // Get all investment transactions for this investment across all accounts
     const investmentTransactions = transactions.filter(
       (t) =>
         t.investment_id === investmentId && t.category?.name === "Investment",
     );
 
-    // Calculate total invested (sum of all investment transactions for this investment)
+    // Calculate total invested across all accounts
     const total_invested = investmentTransactions.reduce((sum, t) => {
       const amount = t.amount_gbp || 0;
       if (amount > 0) {
-        // Positive amounts are money going into investments
         return sum + amount;
       } else {
-        // Negative amounts are withdrawals - subtract from total invested
         return sum - Math.abs(amount);
       }
     }, 0);
 
-    // Get current market value (from market_values table or 0)
-    const latestMarketValue = marketValues
-      .filter((mv) => mv.investment_id === investmentId)
-      .sort(
-        (a, b) =>
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-      )[0];
+    // CRITICAL FIX: If no investment transactions exist, don't count any market value
+    if (investmentTransactions.length === 0) {
+      return {
+        current_market_value: 0,
+        market_value_updated_at: null,
+        total_invested: 0,
+        transaction_count: 0,
+        total_return: 0,
+        return_percentage: 0,
+      };
+    }
 
-    const current_market_value = latestMarketValue?.market_value || 0;
-    const market_value_updated_at = latestMarketValue?.updated_at || null;
+    // Get most recent market values for this investment across all accounts (filter out null account_id)
+    const investmentMarketValues = marketValues.filter(
+      (mv) => mv.investment_id === investmentId && mv.account_id != null,
+    );
+    const mostRecentValues = getMostRecentMarketValues(investmentMarketValues);
+
+    // Sum market values across all accounts
+    let current_market_value = mostRecentValues.reduce(
+      (sum, mv) => sum + mv.market_value,
+      0,
+    );
+
+    // Find the most recent update timestamp
+    let market_value_updated_at =
+      mostRecentValues.length > 0
+        ? mostRecentValues.sort(
+            (a, b) =>
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime(),
+          )[0].updated_at
+        : null;
+
+    // If no market values exist, calculate defaults from transactions per account
+    if (mostRecentValues.length === 0) {
+      // Get unique accounts for this investment
+      const accountsForInvestment = [
+        ...new Set(
+          investmentTransactions.map((t) => t.account?.id).filter(Boolean),
+        ),
+      ];
+
+      // Calculate default value for each account and sum them
+      current_market_value = accountsForInvestment.reduce((sum, accountId) => {
+        return (
+          sum +
+          getDefaultMarketValueFromTransactions(
+            investmentId,
+            accountId!,
+            transactions,
+          )
+        );
+      }, 0);
+
+      market_value_updated_at = null;
+    }
 
     // Calculate performance metrics
     const total_return = current_market_value - total_invested;
@@ -181,7 +303,15 @@ export function useTransactions() {
     try {
       setLoading(true);
 
-      // Fetch transactions with investment data
+      // Fetch investment types with colors
+      const { data: investmentTypesData, error: investmentTypesError } =
+        await supabase.from("investment_types").select("*").order("name");
+
+      if (investmentTypesError) {
+        console.log("Error fetching investment types:", investmentTypesError);
+      }
+
+      // Fetch transactions with investment data including colors
       const { data: transactionsData, error: transactionsError } =
         await supabase
           .from("transactions")
@@ -192,7 +322,10 @@ export function useTransactions() {
           account:accounts(*),
           trip:trips(id, name),
           family_member:family_members(id, name, color, status),
-          investment:investments(id, ticker, investment_type)
+          investment:investments(
+            id, ticker, investment_type,
+            investment_type_detail:investment_types(name, color)
+          )
         `,
           )
           .eq("user_id", user?.id)
@@ -210,7 +343,7 @@ export function useTransactions() {
 
       if (categoriesError) throw categoriesError;
 
-      // Fetch accounts
+      // Fetch accounts with colors
       const { data: accountsData, error: accountsError } = await supabase
         .from("accounts")
         .select("*")
@@ -245,7 +378,7 @@ export function useTransactions() {
         );
       }
 
-      // FIXED: Get market values for calculations
+      // Get market values with account information
       const { data: marketValuesData, error: marketValuesError } =
         await supabase
           .from("investment_market_values")
@@ -264,13 +397,20 @@ export function useTransactions() {
       setAccounts((accountsData || []) as Account[]);
       setTrips((tripsData || []) as Trip[]);
       setFamilyMembers((familyMembersData || []) as unknown as FamilyMember[]);
+      setInvestmentTypes((investmentTypesData || []) as InvestmentType[]); // Set investment types
+      setMarketValues(marketValues);
 
-      // FIXED: Fetch investments with calculated metrics
+      // Calculate investment metrics (simplified - one record per investment)
       try {
         const { data: investmentsData, error: investmentsError } =
           await supabase
             .from("investments")
-            .select("*")
+            .select(
+              `
+              *,
+              investment_type_detail:investment_types(name, color)
+            `,
+            )
             .eq("user_id", user?.id)
             .order("ticker");
 
@@ -281,18 +421,20 @@ export function useTransactions() {
           );
         }
 
-        // FIXED: Calculate proper metrics for each investment
-        const processedInvestments = (investmentsData || []).map((inv: any) => {
-          const metrics = calculateInvestmentMetrics(
-            inv.id,
-            transactions,
-            marketValues,
-          );
-          return {
-            ...inv,
-            ...metrics, // Spread the calculated metrics
-          };
-        });
+        // Process investments - one record per investment (not per account)
+        const processedInvestments: Investment[] = (investmentsData || []).map(
+          (inv: any) => {
+            const metrics = calculateInvestmentMetrics(
+              inv.id,
+              transactions,
+              marketValues,
+            );
+            return {
+              ...inv,
+              ...metrics,
+            };
+          },
+        );
 
         setInvestments(processedInvestments as Investment[]);
       } catch (investmentError) {
@@ -348,7 +490,6 @@ export function useTransactions() {
       failures: [],
     };
 
-    // Get transaction data for error reporting
     const transactionMap = new Map(
       transactions.map((t) => [
         t.id,
@@ -356,28 +497,24 @@ export function useTransactions() {
       ]),
     );
 
-    // Process each transaction individually for better error handling
     for (const transactionId of transactionIds) {
       try {
-        // Build the update object based on the property
         const updateData: any = {};
 
         switch (property) {
           case "category":
             updateData.category_id = value === "none" ? null : value;
 
-            // Handle Family Transfer special case
             if (additionalData?.family_member_id) {
               updateData.family_member_id = additionalData.family_member_id;
               updateData.transaction_type = "transfer";
             } else if (value !== "none") {
-              // If changing to a non-Family Transfer category, clear family member
               const familyTransferCategory = categories.find(
                 (cat) => cat.name === "Family Transfer",
               );
               if (value !== familyTransferCategory?.id) {
                 updateData.family_member_id = null;
-                updateData.transaction_type = "expense"; // Reset to expense
+                updateData.transaction_type = "expense";
               }
             }
             break;
@@ -398,12 +535,11 @@ export function useTransactions() {
             throw new Error(`Unknown property: ${property}`);
         }
 
-        // Update the transaction
         const { error } = await supabase
           .from("transactions")
           .update(updateData)
           .eq("id", transactionId)
-          .eq("user_id", user?.id); // Extra security check
+          .eq("user_id", user?.id);
 
         if (error) throw error;
 
@@ -434,7 +570,6 @@ export function useTransactions() {
       failures: [],
     };
 
-    // Get transaction data for error reporting
     const transactionMap = new Map(
       transactions.map((t) => [
         t.id,
@@ -442,14 +577,13 @@ export function useTransactions() {
       ]),
     );
 
-    // Process each transaction individually for better error handling
     for (const transactionId of transactionIds) {
       try {
         const { error } = await supabase
           .from("transactions")
           .delete()
           .eq("id", transactionId)
-          .eq("user_id", user?.id); // Extra security check
+          .eq("user_id", user?.id);
 
         if (error) throw error;
 
@@ -523,7 +657,8 @@ export function useTransactions() {
     const categoryTotals = currentMonthExpenses.reduce(
       (acc, transaction) => {
         const categoryName = transaction.category?.name || "Uncategorized";
-        const categoryColor = transaction.category?.color || "#6b7280";
+        const categoryColor =
+          transaction.category?.color || "hsl(var(--muted))";
 
         if (!acc[categoryName]) {
           acc[categoryName] = { amount: 0, color: categoryColor };
@@ -671,16 +806,17 @@ export function useTransactions() {
     return balances;
   };
 
-  // Portfolio-specific functions
+  // Portfolio-specific functions - use aggregated investment data
   const getPortfolioSummary = () => {
+    // Sum the current_market_value from each investment (already aggregated across accounts)
     const totalPortfolioValue = investments.reduce(
       (sum, inv) => sum + inv.current_market_value,
       0,
     );
 
-    // FIXED: Use same logic as chartCalculations.getTotalInvestments for consistency
+    // Calculate total invested across all investments (already aggregated)
     const totalInvested = investments.reduce(
-      (sum, inv) => sum + inv.total_invested, // Already calculated as net invested amount
+      (sum, inv) => sum + inv.total_invested,
       0,
     );
 
@@ -688,7 +824,7 @@ export function useTransactions() {
     const returnPercentage =
       totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
 
-    // Find last updated date from market values
+    // Find last updated date from investments
     const lastUpdated =
       investments
         .map((inv) => inv.market_value_updated_at)
@@ -707,7 +843,7 @@ export function useTransactions() {
   };
 
   const getAssetAllocation = () => {
-    // Simplified - just group by investment type
+    // Use aggregated investment data (already properly calculated per investment) with database colors
     const investmentsByType = investments
       .filter((inv) => shouldIncludeInPortfolioBreakdown(inv.investment_type))
       .reduce(
@@ -715,14 +851,18 @@ export function useTransactions() {
           const marketValue = inv.current_market_value;
           if (marketValue > 0) {
             if (!acc[inv.investment_type]) {
-              acc[inv.investment_type] = { amount: 0, count: 0 };
+              acc[inv.investment_type] = {
+                amount: 0,
+                count: 0,
+                color: inv.investment_type_detail?.color || "hsl(var(--muted))", // Use database color
+              };
             }
             acc[inv.investment_type].amount += marketValue;
             acc[inv.investment_type].count++;
           }
           return acc;
         },
-        {} as Record<string, { amount: number; count: number }>,
+        {} as Record<string, { amount: number; count: number; color: string }>,
       );
 
     const totalValue = Object.values(investmentsByType).reduce(
@@ -735,7 +875,64 @@ export function useTransactions() {
       amount: data.amount,
       percentage: totalValue > 0 ? (data.amount / totalValue) * 100 : 0,
       count: data.count,
+      color: data.color, // Include database color
     }));
+  };
+
+  const getAccountAllocation = () => {
+    // Get most recent market values for each investment/account combination (helper already filters null account_id)
+    const mostRecentValues = getMostRecentMarketValues(marketValues);
+
+    // Group market values by account with database colors
+    const investmentsByAccount = mostRecentValues.reduce(
+      (acc, mv) => {
+        const investment = investments.find(
+          (inv) => inv.id === mv.investment_id,
+        );
+        if (
+          investment &&
+          shouldIncludeInPortfolioBreakdown(investment.investment_type)
+        ) {
+          const account = accounts.find((acc) => acc.id === mv.account_id);
+          if (account) {
+            const accountName = account.name;
+            if (!acc[accountName]) {
+              acc[accountName] = {
+                amount: 0,
+                count: 0,
+                color: account.color || "hsl(var(--muted))", // Use database color with fallback
+              };
+            }
+            acc[accountName].amount += mv.market_value;
+            acc[accountName].count++;
+          }
+        }
+        return acc;
+      },
+      {} as Record<string, { amount: number; count: number; color: string }>,
+    );
+
+    const totalValue = Object.values(investmentsByAccount).reduce(
+      (sum, data) => sum + data.amount,
+      0,
+    );
+
+    return Object.entries(investmentsByAccount).map(([accountName, data]) => ({
+      account_name: accountName,
+      amount: data.amount,
+      percentage: totalValue > 0 ? (data.amount / totalValue) * 100 : 0,
+      count: data.count,
+      color: data.color, // Include database color
+    }));
+  };
+
+  const getTopAccountByMarketValue = () => {
+    const accountAllocation = getAccountAllocation();
+    if (accountAllocation.length === 0) return null;
+
+    return accountAllocation.reduce((top, account) =>
+      account.amount > top.amount ? account : top,
+    );
   };
 
   const getInvestmentTransactions = () => {
@@ -749,20 +946,34 @@ export function useTransactions() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
-  // Simplified market value update function
+  // Updated market value function - still account-specific
   const updateInvestmentMarketValue = async (
     investmentId: string,
     marketValue: number,
+    accountId: string,
   ) => {
     try {
+      // Delete existing market value for this investment in this account
+      const { error: deleteError } = await supabase
+        .from("investment_market_values")
+        .delete()
+        .eq("investment_id", investmentId)
+        .eq("account_id", accountId);
+
+      if (deleteError && deleteError.code !== "PGRST116") {
+        console.warn("Could not delete existing market value:", deleteError);
+      }
+
+      // Insert new market value
       const { error } = await supabase.from("investment_market_values").insert({
         investment_id: investmentId,
+        account_id: accountId,
         market_value: marketValue,
       });
 
       if (error) throw error;
 
-      await fetchData(); // Refresh data
+      await fetchData();
       return { success: true };
     } catch (error) {
       console.error("Error updating market value:", error);
@@ -777,6 +988,7 @@ export function useTransactions() {
     trips,
     familyMembers,
     investments,
+    investmentTypes, // Added investment types to return object
     loading,
     addTransaction,
     bulkUpdateTransactions,
@@ -792,5 +1004,7 @@ export function useTransactions() {
     getAssetAllocation,
     getInvestmentTransactions,
     refetch: fetchData,
+    getAccountAllocation,
+    getTopAccountByMarketValue,
   };
 }

@@ -14,6 +14,7 @@ import {
   TrendingDown,
   Lightbulb,
   Plus,
+  Users,
 } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { UpdateMarketValuesModal } from "@/components/portfolio/UpdateMarketValuesModal";
@@ -21,9 +22,7 @@ import { AddEditTransactionModal } from "@/components/transactions/AddEditTransa
 import { DeleteConfirmDialog } from "@/components/transactions/DeleteConfirmDialog";
 import { BulkEditTransactionModal } from "@/components/transactions/BulkEditTransactionModal";
 import { BulkDeleteConfirmDialog } from "@/components/transactions/BulkDeleteConfirmDialog";
-import { OverviewModal } from "@/components/portfolio/OverviewModal";
 import { HoldingsModal } from "@/components/portfolio/HoldingsModal";
-import { PerformanceModal } from "@/components/portfolio/PerformanceModal";
 import { TransactionsModal } from "@/components/portfolio/TransactionsModal";
 import { AssetAllocationChartModal } from "@/components/charts/AssetAllocationChartModal";
 import { PortfolioPerformanceChartModal } from "@/components/charts/PortfolioPerformanceChartModal";
@@ -40,9 +39,7 @@ const PortfolioPage = () => {
 
   // Modal states
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [isOverviewModalOpen, setIsOverviewModalOpen] = useState(false);
   const [isHoldingsModalOpen, setIsHoldingsModalOpen] = useState(false);
-  const [isPerformanceModalOpen, setIsPerformanceModalOpen] = useState(false);
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
 
   // Chart modal states
@@ -60,15 +57,23 @@ const PortfolioPage = () => {
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
 
-  // Holding management states
+  // Updated holding management states - now includes accountId
   const [editingHolding, setEditingHolding] = useState<any>(null);
+  const [editingAccountId, setEditingAccountId] = useState<string | undefined>(
+    undefined,
+  );
   const [deletingHolding, setDeletingHolding] = useState<any>(null);
+  const [deletingAccountId, setDeletingAccountId] = useState<
+    string | undefined
+  >(undefined);
   const [isAddHoldingModalOpen, setIsAddHoldingModalOpen] = useState(false);
   const [deleteHoldingLoading, setDeleteHoldingLoading] = useState(false);
 
   // Add Existing Balance modal state
   const [isAddExistingBalanceModalOpen, setIsAddExistingBalanceModalOpen] =
     useState(false);
+
+  const transactionsHook = useTransactions();
 
   const {
     investments = [],
@@ -83,9 +88,15 @@ const PortfolioPage = () => {
     getPortfolioSummary,
     getAssetAllocation,
     getInvestmentTransactions,
+    getFamilyBalances,
     bulkUpdateTransactions,
     bulkDeleteTransactions,
-  } = useTransactions();
+  } = transactionsHook;
+
+  // Try to get new functions, with fallbacks
+  const getAccountAllocation = transactionsHook.getAccountAllocation;
+  const getTopAccountByMarketValue =
+    transactionsHook.getTopAccountByMarketValue;
 
   // Get investment transactions
   const investmentTransactions = getInvestmentTransactions
@@ -104,11 +115,56 @@ const PortfolioPage = () => {
         lastUpdated: null,
       };
 
+  // Temporary mock functions until you add them to useTransactions hook
+  const mockGetAccountAllocation = () => [];
+  const mockGetTopAccountByMarketValue = () => null;
+
   const assetAllocation = getAssetAllocation ? getAssetAllocation() : [];
+
+  // Use mock functions if the real ones don't exist yet
+  const accountAllocation = getAccountAllocation
+    ? getAccountAllocation()
+    : mockGetAccountAllocation();
+  const topAccount = getTopAccountByMarketValue
+    ? getTopAccountByMarketValue()
+    : mockGetTopAccountByMarketValue();
+
+  // Calculate total family balance
+  const familyBalances = getFamilyBalances ? getFamilyBalances() : [];
+  const totalFamilyBalance = familyBalances.reduce(
+    (sum, member) => sum + member.balance,
+    0,
+  );
 
   // Use chartCalculations.getTotalInvestments for consistency
   const totalInvestmentsFromTransactions =
     chartCalculations.getTotalInvestments(transactions);
+
+  // Calculate monthly average investment from last 12 months (with fallback)
+  let monthlyAvgInvestment = 0;
+  try {
+    const last12MonthsInvestmentData =
+      chartCalculations.getLast12MonthsInvestmentData
+        ? chartCalculations.getLast12MonthsInvestmentData(transactions)
+        : [];
+    monthlyAvgInvestment =
+      last12MonthsInvestmentData.reduce((sum, month) => sum + month.amount, 0) /
+      12;
+  } catch (error) {
+    // Fallback calculation if function doesn't exist
+    monthlyAvgInvestment = totalInvestmentsFromTransactions / 12;
+  }
+
+  // Get the latest market value update date from all investments
+  const getLatestMarketValueDate = () => {
+    const dates = investments
+      .map((inv) => inv.market_value_updated_at)
+      .filter((date) => date !== null && date !== undefined)
+      .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
+    return dates.length > 0 ? dates[0] : portfolioSummary.lastUpdated;
+  };
+
+  const latestMarketValueDate = getLatestMarketValueDate();
 
   // Helper functions
   const handleUpdateMarketValues = () => {
@@ -123,7 +179,16 @@ const PortfolioPage = () => {
     return new Intl.NumberFormat("en-GB", {
       style: "currency",
       currency: "GBP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
+  };
+
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat("en-GB", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(value));
   };
 
   const formatDate = (dateString: string | null) => {
@@ -164,23 +229,36 @@ const PortfolioPage = () => {
     setEditingTransaction(null);
   };
 
-  // Holding management functions
+  // Updated holding management functions - now handle accountId
   const handleAddHolding = () => {
+    setEditingHolding(null);
+    setEditingAccountId(undefined);
     setIsAddHoldingModalOpen(true);
   };
 
-  const handleEditHolding = (holding: any) => {
+  const handleEditHolding = (holding: any, accountId?: string) => {
     setEditingHolding(holding);
+    setEditingAccountId(accountId);
+    setIsAddHoldingModalOpen(false); // Make sure add modal is closed
+    // We'll open the edit modal in the modal render section
   };
 
-  const handleDeleteHolding = (holding: any) => {
+  const handleDeleteHolding = (holding: any, accountId?: string) => {
     setDeletingHolding(holding);
+    setDeletingAccountId(accountId);
   };
 
   const handleHoldingModalSave = () => {
     refetch();
     setIsAddHoldingModalOpen(false);
     setEditingHolding(null);
+    setEditingAccountId(undefined);
+  };
+
+  const handleHoldingModalClose = () => {
+    setIsAddHoldingModalOpen(false);
+    setEditingHolding(null);
+    setEditingAccountId(undefined);
   };
 
   const handleAddExistingBalanceSave = () => {
@@ -194,20 +272,38 @@ const PortfolioPage = () => {
     setDeleteHoldingLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("investments")
-        .delete()
-        .eq("id", deletingHolding.id);
+      if (deletingAccountId) {
+        // Account-specific deletion: delete all transactions for this investment in this account
+        const { error } = await supabase
+          .from("transactions")
+          .delete()
+          .eq("investment_id", deletingHolding.id)
+          .eq("account_id", deletingAccountId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Holding deleted successfully.",
-      });
+        toast({
+          title: "Success",
+          description: `Removed ${deletingHolding.ticker} from the selected account.`,
+        });
+      } else {
+        // Full deletion: delete the entire investment record
+        const { error } = await supabase
+          .from("investments")
+          .delete()
+          .eq("id", deletingHolding.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: `Deleted ${deletingHolding.ticker} completely.`,
+        });
+      }
 
       refetch();
       setDeletingHolding(null);
+      setDeletingAccountId(undefined);
     } catch (error) {
       console.error("Delete holding error:", error);
       toast({
@@ -390,7 +486,7 @@ const PortfolioPage = () => {
                   {formatCurrency(portfolioSummary.totalPortfolioValue)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Last updated: {formatDate(portfolioSummary.lastUpdated)}
+                  Last updated: {formatDate(latestMarketValueDate)}
                 </p>
               </div>
             </CardContent>
@@ -412,7 +508,7 @@ const PortfolioPage = () => {
                   {formatCurrency(totalInvestmentsFromTransactions)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  From all investment transactions
+                  Monthly Average: {formatCurrency(monthlyAvgInvestment)}
                 </p>
               </div>
             </CardContent>
@@ -469,101 +565,87 @@ const PortfolioPage = () => {
             </CardContent>
           </Card>
 
-          {/* Holdings - ZAWALI MUTED */}
-          <Card className="bg-gradient-to-br from-muted/40 to-muted/20 border-muted shadow-2xl hover:shadow-muted/20 transition-all duration-300 hover:scale-105 zawali-slide-up min-h-[200px]">
+          {/* Family Contribution - NEW CARD replacing Holdings */}
+          <Card
+            className={`${
+              totalFamilyBalance >= 0
+                ? "bg-gradient-to-br from-warning/20 to-warning/10 border-warning/30 hover:shadow-warning/20"
+                : "bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30 hover:shadow-primary/20"
+            } shadow-2xl transition-all duration-300 hover:scale-105 zawali-slide-up min-h-[200px]`}
+          >
             <CardContent className="p-10 h-full flex flex-col justify-between">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="p-3 bg-muted/30 rounded-full">
-                  <PieChart className="h-8 w-8 text-foreground" />
+                <div
+                  className={`p-3 rounded-full ${
+                    totalFamilyBalance >= 0 ? "bg-warning/20" : "bg-primary/20"
+                  }`}
+                >
+                  <Users
+                    className={`h-8 w-8 ${totalFamilyBalance >= 0 ? "text-warning" : "text-primary"}`}
+                  />
                 </div>
-                <div className="text-base font-medium text-foreground">
-                  🏛️ Holdings
+                <div
+                  className={`text-base font-medium ${totalFamilyBalance >= 0 ? "text-warning" : "text-primary"}`}
+                >
+                  👨‍👩‍👧‍👦 Family Contribution
                 </div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-foreground mb-3">
-                  {portfolioSummary.holdingsCount}
+                <div
+                  className={`text-4xl font-bold mb-3 ${totalFamilyBalance >= 0 ? "text-warning" : "balance-negative"}`}
+                >
+                  {formatCurrency(totalFamilyBalance)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Investment positions
+                  {portfolioSummary.totalPortfolioValue > 0
+                    ? `${((Math.abs(totalFamilyBalance) / portfolioSummary.totalPortfolioValue) * 100).toFixed(0)}% of current Portfolio Value`
+                    : "Net family transfers"}
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Action Cards - ZAWALI THEMED: Bigger and more dramatic */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          <Card
-            className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-accent/20 hover:border-accent/40 hover:scale-105 zawali-bounce min-h-[160px]"
-            onClick={() => setIsOverviewModalOpen(true)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg font-semibold text-accent">
-                📊 Overview
-              </CardTitle>
-              <PieChart className="h-6 w-6 text-accent" />
-            </CardHeader>
-            <CardContent className="pb-8">
-              <div className="text-base text-muted-foreground">
-                Asset allocation and portfolio insights
-              </div>
-            </CardContent>
-          </Card>
+        {/* Quick Action Cards - Holdings and Transactions - Smaller and Centered */}
+        <div className="flex justify-center mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+            <Card
+              className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-secondary/20 hover:border-secondary/40 hover:scale-105 zawali-bounce min-h-[160px]"
+              onClick={() => setIsHoldingsModalOpen(true)}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg font-semibold text-secondary">
+                  💼 Holdings
+                </CardTitle>
+                <Briefcase className="h-6 w-6 text-secondary" />
+              </CardHeader>
+              <CardContent className="pb-8">
+                <div className="text-base text-muted-foreground">
+                  Current investment positions and values
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card
-            className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-secondary/20 hover:border-secondary/40 hover:scale-105 zawali-bounce min-h-[160px]"
-            onClick={() => setIsHoldingsModalOpen(true)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg font-semibold text-secondary">
-                💼 Holdings
-              </CardTitle>
-              <Briefcase className="h-6 w-6 text-secondary" />
-            </CardHeader>
-            <CardContent className="pb-8">
-              <div className="text-base text-muted-foreground">
-                Current investment positions and values
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-success/20 hover:border-success/40 hover:scale-105 zawali-bounce min-h-[160px]"
-            onClick={() => setIsPerformanceModalOpen(true)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg font-semibold text-success">
-                🚀 Performance
-              </CardTitle>
-              <TrendingUp className="h-6 w-6 text-success" />
-            </CardHeader>
-            <CardContent className="pb-8">
-              <div className="text-base text-muted-foreground">
-                Returns and performance analysis
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-primary/20 hover:border-primary/40 hover:scale-105 zawali-bounce min-h-[160px]"
-            onClick={() => setIsTransactionsModalOpen(true)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg font-semibold text-primary">
-                💳 Transactions
-              </CardTitle>
-              <CreditCard className="h-6 w-6 text-primary" />
-            </CardHeader>
-            <CardContent className="pb-8">
-              <div className="text-base text-muted-foreground">
-                Investment transaction history
-              </div>
-            </CardContent>
-          </Card>
+            <Card
+              className="bg-card/80 hover:bg-card/90 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-primary/20 hover:border-primary/40 hover:scale-105 zawali-bounce min-h-[160px]"
+              onClick={() => setIsTransactionsModalOpen(true)}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg font-semibold text-primary">
+                  💳 Transactions
+                </CardTitle>
+                <CreditCard className="h-6 w-6 text-primary" />
+              </CardHeader>
+              <CardContent className="pb-8">
+                <div className="text-base text-muted-foreground">
+                  Investment transaction history
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Chart Quick Access - ZAWALI THEMED: Even bigger */}
+        {/* Chart Quick Access - Full width row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           <Card
             className="bg-gradient-to-br from-warning/10 to-warning/5 hover:from-warning/15 hover:to-warning/10 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer border-warning/20 hover:border-warning/40 hover:scale-105 zawali-float min-h-[180px]"
@@ -633,21 +715,21 @@ const PortfolioPage = () => {
                     <span className="font-semibold text-primary">
                       Breaking:
                     </span>{" "}
-                    Local zawali discovers the stock market isn't just a fancy
-                    grocery store! 🛒📈
+                    Bruh, Zawali and looking to invest... 🤣 This is like a
+                    brokie checking their portfolio for loose change! 💰
                   </p>
                   <p>
-                    Who said you need money to lose money? We're out here
-                    proving you can be broke AND bad at investing!
+                    {portfolioSummary.totalReturn >= 0
+                      ? "Holy makloub! We actually made money! Quick, screenshot this before it disappears! 📸✨"
+                      : "Congratulations, we've achieved peak zawali: losing money we didn't even have! But hey, at least we're consistent! 🏆😅"}
                   </p>
                   <p>
-                    £{Math.abs(totalInvestmentsFromTransactions).toFixed(2)} in
-                    investments? Nar ya habibi nar! 🔥
+                    £{formatNumber(Math.abs(totalInvestmentsFromTransactions))}{" "}
+                    in investments? Nar ya habibi nar! 🔥
                   </p>
                   <p className="text-sm text-muted-foreground italic">
-                    {portfolioSummary.totalReturn >= 0
-                      ? "📈 Holy makloub! We actually made money! Quick, screenshot this before it disappears!"
-                      : "📉 Congratulations, we've achieved peak zawali: losing money we didn't even have! 🏆"}
+                    The only thing growing faster than our losses is our ability
+                    to pretend we know what we're doing! 📊🤡
                   </p>
                 </div>
               </div>
@@ -655,33 +737,16 @@ const PortfolioPage = () => {
           </CardContent>
         </Card>
 
-        {/* Tab Modals */}
-        <OverviewModal
-          isOpen={isOverviewModalOpen}
-          onClose={() => setIsOverviewModalOpen(false)}
-          portfolioSummary={portfolioSummary}
-          assetAllocation={assetAllocation}
-          investments={investments}
-          onOpenAssetAllocationChart={() => setIsAssetAllocationChartOpen(true)}
-          onOpenPerformanceChart={() => setIsPerformanceChartOpen(true)}
-          onOpenInvestmentChart={() => setIsInvestmentChartOpen(true)}
-        />
-
+        {/* Updated HoldingsModal with transactions and new handlers */}
         <HoldingsModal
           isOpen={isHoldingsModalOpen}
           onClose={() => setIsHoldingsModalOpen(false)}
           investments={investments}
+          transactions={transactions} // Now passing transactions for account mapping
           onAddTransaction={handleAddTransaction}
           onAddHolding={handleAddHolding}
-          onEditHolding={handleEditHolding}
-          onDeleteHolding={handleDeleteHolding}
-        />
-
-        <PerformanceModal
-          isOpen={isPerformanceModalOpen}
-          onClose={() => setIsPerformanceModalOpen(false)}
-          investments={investments}
-          portfolioSummary={portfolioSummary}
+          onEditHolding={handleEditHolding} // Now handles accountId parameter
+          onDeleteHolding={handleDeleteHolding} // Now handles accountId parameter
         />
 
         <TransactionsModal
@@ -704,6 +769,9 @@ const PortfolioPage = () => {
           isOpen={isAssetAllocationChartOpen}
           onClose={() => setIsAssetAllocationChartOpen(false)}
           assetAllocation={assetAllocation}
+          accountAllocation={accountAllocation}
+          totalPortfolioValue={portfolioSummary.totalPortfolioValue}
+          topAccount={topAccount}
         />
 
         <PortfolioPerformanceChartModal
@@ -711,6 +779,7 @@ const PortfolioPage = () => {
           onClose={() => setIsPerformanceChartOpen(false)}
           investments={investments}
           portfolioSummary={portfolioSummary}
+          transactions={transactions}
         />
 
         <InvestmentContributionsChartModal
@@ -725,7 +794,38 @@ const PortfolioPage = () => {
           isOpen={isUpdateModalOpen}
           onClose={() => setIsUpdateModalOpen(false)}
           investments={investments}
-          onUpdateMarketValue={updateInvestmentMarketValue}
+          onUpdateMarketValue={(investmentId, marketValue) => {
+            // For bulk updates, we might need to handle account selection differently
+            // For now, use the first account found for this investment
+            const investmentAccountMapping = new Map<string, string>();
+            transactions
+              .filter(
+                (t) => t.investment_id && t.category?.name === "Investment",
+              )
+              .forEach((t) => {
+                if (
+                  t.investment_id &&
+                  t.account?.id &&
+                  !investmentAccountMapping.has(t.investment_id)
+                ) {
+                  investmentAccountMapping.set(t.investment_id, t.account.id);
+                }
+              });
+
+            const accountId = investmentAccountMapping.get(investmentId);
+            if (accountId) {
+              return updateInvestmentMarketValue(
+                investmentId,
+                marketValue,
+                accountId,
+              );
+            } else {
+              return Promise.resolve({
+                success: false,
+                error: new Error("No account found for this investment"),
+              });
+            }
+          }}
         />
 
         <AddEditTransactionModal
@@ -741,16 +841,19 @@ const PortfolioPage = () => {
           trips={trips}
         />
 
-        {/* Holding Management Modals */}
+        {/* Updated AddEditHoldingModal with market value functionality */}
         <AddEditHoldingModal
           isOpen={isAddHoldingModalOpen || !!editingHolding}
-          onClose={() => {
-            setIsAddHoldingModalOpen(false);
-            setEditingHolding(null);
-          }}
-          holding={editingHolding}
+          onClose={handleHoldingModalClose}
           onSave={handleHoldingModalSave}
+          holding={editingHolding}
+          accountId={editingAccountId} // Pass account ID for account-specific editing
           existingHoldings={investments}
+          accounts={accounts} // Pass accounts for selection
+          transactions={transactions} // Pass transactions for account mapping
+          updateInvestmentMarketValue={(investmentId, marketValue, accountId) =>
+            updateInvestmentMarketValue(investmentId, marketValue, accountId)
+          } // Updated function signature
         />
 
         <AddExistingBalanceModal
@@ -763,7 +866,10 @@ const PortfolioPage = () => {
 
         <DeleteHoldingConfirmDialog
           isOpen={!!deletingHolding}
-          onClose={() => setDeletingHolding(null)}
+          onClose={() => {
+            setDeletingHolding(null);
+            setDeletingAccountId(undefined);
+          }}
           onConfirm={handleDeleteHoldingConfirm}
           holding={deletingHolding}
           loading={deleteHoldingLoading}
