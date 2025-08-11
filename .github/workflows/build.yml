@@ -1,10 +1,9 @@
 name: Build and Release Desktop App
 
+# Only run on version tags (releases on main)
 on:
   push:
-    tags: ["v*"] # Only build on version tags
-  pull_request:
-    branches: [main]
+    tags: ["v*"] # Only build on version tags like v1.0.0
 
 jobs:
   build-mac:
@@ -29,11 +28,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Sanitize ref name for artifact (replace slashes with hyphens)
+      - name: Sanitize ref name
+        id: sanitize
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          SANITIZED_NAME="${REF_NAME//\//-}"
+          echo "sanitized_ref_name=${SANITIZED_NAME}" >> $GITHUB_OUTPUT
+
       # Upload artifacts for debugging
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zawali-finance-mac-${{ github.ref_name }}
+          name: zawali-finance-mac-${{ steps.sanitize.outputs.sanitized_ref_name }}
           path: |
             dist-electron/*.dmg
             dist-electron/*.blockmap
@@ -41,7 +48,6 @@ jobs:
 
       # Create GitHub release with ALL necessary files
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           files: |
